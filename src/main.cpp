@@ -1,7 +1,9 @@
 #include "Constants.hpp"
 #include "Scene.hpp"
 #include "Simulator.hpp"
+#include <iostream>
 #include "Renderer.hpp"
+#include <memory>
 
 using namespace std;
 
@@ -12,9 +14,10 @@ int main(int argc, char* argv[]) {
     bool benchmark = false;
     int num_iterations = 100;
 
-    Simulator sim;
-    if (parallel) sim = ParallelSimulator();
-    else sim = SequentialSimulator();
+    unique_ptr<Simulator> sim;
+    // if (parallel) sim.reset(new ParallelSimulator());
+    // else sim.reset(new SequentialSimulator());
+    sim.reset(new SequentialSimulator());
 
     Scene scene(scene_file);
 
@@ -26,4 +29,5 @@ int main(int argc, char* argv[]) {
             renderer.draw(scene);
         }
     }*/
+    std::cout << "HELLO" << "\n";
 }

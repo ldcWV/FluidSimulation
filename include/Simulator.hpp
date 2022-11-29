@@ -2,7 +2,7 @@
 #include "Scene.hpp"
 
 struct Simulator {
-    virtual void update(float elapsed, Scene& scene);
+    virtual void update(float elapsed, Scene& scene) = 0;
 };
 
 struct SequentialSimulator : Simulator {

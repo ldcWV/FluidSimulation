@@ -1,5 +1,5 @@
 #pragma once
-#include <glm/glm.hpp>
+#include "glm/glm.hpp"
 
 namespace Constants {
     const glm::dvec3 g = {0, -9.8, 0};
