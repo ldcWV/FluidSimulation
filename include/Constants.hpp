@@ -13,4 +13,7 @@ namespace Constants {
     const int solver_iterations = 3;
     const double pi = 3.14159265358979323846;
     const double rest_density = 10;
+    const double corr_q = 0.3; 
+    const double corr_k = 0.001;
+    const int corr_n = 4;
 };

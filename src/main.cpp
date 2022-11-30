@@ -49,6 +49,7 @@ int main(int argc, char* argv[]) {
         if (glfwWindowShouldClose(window)) break;
 
         /* Render here */
+        // TODO: substeps with dt / # substeps 
         sim->update(Constants::dt, scene);
         renderer.draw(scene);
 

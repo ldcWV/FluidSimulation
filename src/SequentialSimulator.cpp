@@ -111,7 +111,7 @@ dvec3 SequentialSimulator::compute_grad_constraint(const Scene& scene, int const
         }
         return grad;
     } else {
-        return -Kernels::gradSpiky(constraint_pos - scene.particles[grad_id].new_pos, Constants::h) / Constants::rest_density;
+        return -Constants::mass * Kernels::gradSpiky(constraint_pos - scene.particles[grad_id].new_pos, Constants::h) / Constants::rest_density;
     }
 }
 
@@ -134,18 +134,22 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
             for (int j = 0; j < neighbor_counts[i]; j++) {
                 int neighbor_id = neighbors[i * Constants::max_neighbors + j];
                 auto grad_constraint = compute_grad_constraint(scene, i, neighbor_id);
-                denom += dot(grad_constraint, grad_constraint);
+                denom += dot(grad_constraint, grad_constraint) / Constants::mass;
             }
             lambdas[i] = -constraint / (denom + Constants::eps);
         }
         
         
         // Calculate delta_p and perform collision detection and response
+        double corr_q = Kernels::poly6(Constants::corr_q * Constants::h * dvec3{1.0, 1.0, 1.0}, Constants::h);
         for (int i = 0; i < scene.particles.size(); ++i) {
             delta_pos[i] = dvec3{0.0, 0.0, 0.0};
             for (int j = 0; j < neighbor_counts[i]; j++) {
                 int neighbor_id = neighbors[i * Constants::max_neighbors + j];
-                delta_pos[i] += (lambdas[i] + lambdas[neighbor_id]) * compute_grad_constraint(scene, i, neighbor_id) / Constants::rest_density;
+                double corr_kernel = Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h); 
+                double corr = -Constants::corr_k * std::pow(corr_kernel / corr_q, Constants::corr_n);
+                // WE LEAVE OUT THE MASS COMPUTATION BECAUSE THE NEIGHBOR AND PARTICLE MASS CANCEL
+                delta_pos[i] += (lambdas[i] + lambdas[neighbor_id] + corr) * compute_grad_constraint(scene, i, neighbor_id) / Constants::rest_density;
             }
         }
         
