@@ -16,4 +16,5 @@ namespace Constants {
     const double corr_q = 0.3; 
     const double corr_k = 0.001;
     const int corr_n = 4;
+    const float xsph_c = 0.5;
 };

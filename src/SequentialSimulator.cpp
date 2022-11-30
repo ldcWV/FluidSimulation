@@ -175,7 +175,20 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
     for (auto& p : scene.particles) {
         // should we damp the velocities? 
         p.vel = (p.new_pos - p.pos) / elapsed;
-        // TODO: apply vorticity confinement and XSPH viscosity
         p.pos = p.new_pos;
     }
+
+    // TODO: vorticity 
+
+    // XSPH viscosity
+    for (int i = 0; i < scene.particles.size(); ++i) {
+        dvec3 viscosity{0.0, 0.0, 0.0};
+        for (int j = 0; j < neighbor_counts[i]; j++) {
+            int neighbor_id = neighbors[i * Constants::max_neighbors + j];
+            dvec3 vel = scene.particles[neighbor_id].vel - scene.particles[i].vel;
+            double density = compute_density(scene, neighbor_id); 
+            viscosity +=  (Constants::xsph_c / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
+        }
+        scene.particles[i].vel += viscosity;
+    }    
 }
