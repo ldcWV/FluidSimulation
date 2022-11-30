@@ -13,11 +13,12 @@ int main(int argc, char* argv[]) {
     cout << "Starting main" << endl;
     // todo: parse arguments (parallel/sequential, scene file, benchmark/visualization, num iterations)
     bool parallel = false;
-    string scene_file = "../../scenes/1000_random.txt";
+    string scene_name = "1000_random.txt";
     bool benchmark = false;
     int num_iterations = 1000000;
 
-    cout << "Loading scene" << endl;
+    string scene_file = string(SCENE_DIR) + scene_name;
+    cout << "Loading scene from " << scene_file << endl;
     Scene scene(scene_file);
     cout << scene.particles.size() << " particles loaded" << endl;
 
