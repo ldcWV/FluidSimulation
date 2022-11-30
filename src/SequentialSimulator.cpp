@@ -31,11 +31,12 @@ SequentialSimulator::~SequentialSimulator() {
 }
 
 ivec3 SequentialSimulator::get_cell_coords(dvec3 pos) {
-    return ivec3{
+    ivec3 res{
         (pos.x - bbox_mins.x) / Constants::h,
         (pos.y - bbox_mins.y) / Constants::h,
         (pos.z - bbox_mins.z) / Constants::h
     };
+    return clamp(res, ivec3{0, 0, 0}, ivec3{grid_width-1, grid_height-1, grid_length-1});
 }
 
 int SequentialSimulator::get_cell_idx(ivec3 coords) {
@@ -120,16 +121,6 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
         p.vel += elapsed * Constants::g;
         // Predict new position
         p.new_pos = p.pos + elapsed * p.vel;
-        // Collisions with box
-        for (int i = 0; i < 3; i++) {
-            if (p.new_pos[i] < bbox_mins[i] + Constants::radius) {
-                p.vel[i] = 0;
-                p.new_pos[i] = bbox_mins[i] + Constants::radius;
-            } else if (p.new_pos[i] > bbox_maxs[i] - Constants::radius) {
-                p.vel[i] = 0;
-                p.new_pos[i] = bbox_maxs[i] - Constants::radius;
-            }
-        }
     }
 
     recompute_grid(scene);
@@ -183,7 +174,7 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
 
     for (auto& p : scene.particles) {
         // should we damp the velocities? 
-        p.vel = 1.0 / elapsed * (p.new_pos - p.pos);
+        p.vel = (p.new_pos - p.pos) / elapsed;
         // TODO: apply vorticity confinement and XSPH viscosity
         p.pos = p.new_pos;
     }
