@@ -64,7 +64,6 @@ void Renderer::draw(const Scene& scene) {
     // Draw particles
     glColor3f(1.0, 0.0, 0.0);
     for (auto particle : scene.particles) {
-        std::cout << particle.pos.y << std::endl;
         DrawCircle(particle.pos.x, particle.pos.y, Constants::radius, 64);
     }
 }

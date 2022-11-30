@@ -135,6 +135,7 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
     recompute_grid(scene);
     recompute_neighbors(scene);
 
+    
     for (int iter = 0; iter < Constants::solver_iterations; iter++) {
         // Calculate lambda_i
         for (int i = 0; i < scene.particles.size(); ++i) {
@@ -148,19 +149,22 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
             lambdas[i] = -constraint / (denom + Constants::eps);
         }
         
+        
         // Calculate delta_p and perform collision detection and response
         for (int i = 0; i < scene.particles.size(); ++i) {
+            delta_pos[i] = dvec3{0.0, 0.0, 0.0};
             for (int j = 0; j < neighbor_counts[i]; j++) {
                 int neighbor_id = neighbors[i * Constants::max_neighbors + j];
                 delta_pos[i] += (lambdas[i] + lambdas[neighbor_id]) * compute_grad_constraint(scene, i, neighbor_id) / Constants::rest_density;
             }
         }
-
+        
         // Separate for loops for parallelization later 
         for (int i = 0; i < scene.particles.size(); ++i) {
             // Update positions
             scene.particles[i].new_pos += delta_pos[i];
         }
+
 
         for (int i = 0; i < scene.particles.size(); ++i) {
             // Should we zero out velocities? 
