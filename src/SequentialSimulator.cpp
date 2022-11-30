@@ -19,6 +19,7 @@ SequentialSimulator::SequentialSimulator(const Scene& scene) {
     this->neighbor_counts = (int*)calloc(scene.particles.size(), sizeof(int));
     this->lambdas = (double*)calloc(scene.particles.size(), sizeof(double));
     this->delta_pos = (dvec3*)calloc(scene.particles.size(), sizeof(dvec3));
+    this->delta_vel = (dvec3*)calloc(scene.particles.size(), sizeof(dvec3));
 }
 
 SequentialSimulator::~SequentialSimulator() {
@@ -28,6 +29,7 @@ SequentialSimulator::~SequentialSimulator() {
     free(neighbor_counts);
     free(lambdas);
     free(delta_pos);
+    free(delta_vel);
 }
 
 ivec3 SequentialSimulator::get_cell_coords(dvec3 pos) {
@@ -182,13 +184,15 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
 
     // XSPH viscosity
     for (int i = 0; i < scene.particles.size(); ++i) {
-        dvec3 viscosity{0.0, 0.0, 0.0};
+        delta_vel[i] = dvec3{0.0, 0.0, 0.0};
         for (int j = 0; j < neighbor_counts[i]; j++) {
             int neighbor_id = neighbors[i * Constants::max_neighbors + j];
             dvec3 vel = scene.particles[neighbor_id].vel - scene.particles[i].vel;
             double density = compute_density(scene, neighbor_id); 
-            viscosity +=  (Constants::xsph_c / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
+            delta_vel[i] += (Constants::xsph_c / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
         }
-        scene.particles[i].vel += viscosity;
+    }
+    for (int i = 0; i < scene.particles.size(); ++i) {
+        scene.particles[i].vel += delta_vel[i];
     }    
 }
