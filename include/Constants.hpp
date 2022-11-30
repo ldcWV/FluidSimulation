@@ -7,7 +7,7 @@ namespace Constants {
     const double eps = 1e5;
     const double mass = 1.0 / 30.0;
     const double radius = 0.1;
-    const double h = 1.0;
+    const double h = 0.1; // not the same thing as radius 
     const size_t max_particles_per_cell = 1000;
     const size_t max_neighbors = 100;
     const int solver_iterations = 3;

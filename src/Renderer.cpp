@@ -10,10 +10,10 @@ void DrawCircle(float cx, float cy, float r, int num_segments) {
     {
         float theta = 2.0f * 3.1415926f * float(ii) / float(num_segments);//get the current angle
 
-        float x = r * cosf(theta);//calculate the x component
-        float y = r * sinf(theta);//calculate the y component
+        float x = r * cosf(theta); //calculate the x component
+        float y = r * sinf(theta); //calculate the y component
 
-        glVertex2f(x + cx, y + cy);//output vertex
+        glVertex2f(x + cx, y + cy); //output vertex
 
     }
     glEnd();
@@ -64,6 +64,7 @@ void Renderer::draw(const Scene& scene) {
     // Draw particles
     glColor3f(1.0, 0.0, 0.0);
     for (auto particle : scene.particles) {
+        std::cout << particle.pos.y << std::endl;
         DrawCircle(particle.pos.x, particle.pos.y, Constants::radius, 64);
     }
 }

@@ -17,6 +17,8 @@ SequentialSimulator::SequentialSimulator(const Scene& scene) {
     this->grid_cell_counts = (int*)calloc(grid_width * grid_height * grid_length, sizeof(int));
     this->neighbors = (int*)calloc(scene.particles.size()*Constants::max_neighbors, sizeof(int));
     this->neighbor_counts = (int*)calloc(scene.particles.size(), sizeof(int));
+    this->lambdas = (double*)calloc(scene.particles.size(), sizeof(double));
+    this->delta_pos = (dvec3*)calloc(scene.particles.size(), sizeof(dvec3));
 }
 
 SequentialSimulator::~SequentialSimulator() {
@@ -24,6 +26,8 @@ SequentialSimulator::~SequentialSimulator() {
     free(grid_cell_counts);
     free(neighbors);
     free(neighbor_counts);
+    free(lambdas);
+    free(delta_pos);
 }
 
 ivec3 SequentialSimulator::get_cell_coords(dvec3 pos) {
@@ -77,11 +81,43 @@ void SequentialSimulator::recompute_neighbors(const Scene& scene) {
     }
 }
 
+double SequentialSimulator::compute_density(const Scene& scene, int particle_id) {
+    const Particle& target = scene.particles[particle_id];
+    double density = 0.0;
+    for (int i = 0; i < neighbor_counts[particle_id]; i++) {
+        int neighbor_id = neighbors[particle_id * Constants::max_neighbors + i];
+        const Particle& p = scene.particles[neighbor_id];
+        density += Constants::mass * Kernels::poly6(target.new_pos - p.new_pos, Constants::h);
+    }
+    return density;
+}
+
+double SequentialSimulator::compute_constraint(const Scene& scene, int particle_id) {
+    const Particle& target = scene.particles[particle_id];
+    return compute_density(scene, particle_id) / Constants::rest_density - 1.0;
+}
+
+// Assumes that grad_id is the id of a neighbor of particle_id
+dvec3 SequentialSimulator::compute_grad_constraint(const Scene& scene, int constraint_id, int grad_id) {
+    const Particle& constraint_particle = scene.particles[constraint_id];
+    const dvec3& constraint_pos = constraint_particle.new_pos;
+    if (constraint_id == grad_id) {
+        dvec3 grad{0.0, 0.0, 0.0};
+        for (int i = 0; i < neighbor_counts[constraint_id]; i++) {
+            int neighbor_id = neighbors[constraint_id * Constants::max_neighbors + i];
+            const dvec3& neighbor_pos = scene.particles[neighbor_id].new_pos;
+            grad += Constants::mass * Kernels::gradSpiky(constraint_pos - neighbor_pos, Constants::h) / Constants::rest_density;
+        }
+        return grad;
+    } else {
+        return -Kernels::gradSpiky(constraint_pos - scene.particles[grad_id].new_pos, Constants::h) / Constants::rest_density;
+    }
+}
+
 void SequentialSimulator::update(double elapsed, Scene& scene) {
     for (auto& p : scene.particles) {
         // Apply forces
         p.vel += elapsed * Constants::g;
-
         // Predict new position
         p.new_pos = p.pos + elapsed * p.vel;
         // Collisions with box
@@ -99,15 +135,47 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
     recompute_grid(scene);
     recompute_neighbors(scene);
 
-    for (int i = 0; i < Constants::solver_iterations; i++) {
+    for (int iter = 0; iter < Constants::solver_iterations; iter++) {
         // Calculate lambda_i
-
+        for (int i = 0; i < scene.particles.size(); ++i) {
+            double constraint = compute_constraint(scene, i);
+            double denom = 0.0;
+            for (int j = 0; j < neighbor_counts[i]; j++) {
+                int neighbor_id = neighbors[i * Constants::max_neighbors + j];
+                auto grad_constraint = compute_grad_constraint(scene, i, neighbor_id);
+                denom += dot(grad_constraint, grad_constraint);
+            }
+            lambdas[i] = -constraint / (denom + Constants::eps);
+        }
+        
         // Calculate delta_p and perform collision detection and response
+        for (int i = 0; i < scene.particles.size(); ++i) {
+            for (int j = 0; j < neighbor_counts[i]; j++) {
+                int neighbor_id = neighbors[i * Constants::max_neighbors + j];
+                delta_pos[i] += (lambdas[i] + lambdas[neighbor_id]) * compute_grad_constraint(scene, i, neighbor_id) / Constants::rest_density;
+            }
+        }
 
-        // Update new_pos
+        // Separate for loops for parallelization later 
+        for (int i = 0; i < scene.particles.size(); ++i) {
+            // Update positions
+            scene.particles[i].new_pos += delta_pos[i];
+        }
+
+        for (int i = 0; i < scene.particles.size(); ++i) {
+            // Should we zero out velocities? 
+            for (int j = 0; j < 3; j++) {
+                if (scene.particles[i].new_pos[j] < bbox_mins[j] + Constants::radius) {
+                    scene.particles[i].new_pos[j] = bbox_mins[j] + Constants::radius;
+                } else if (scene.particles[i].new_pos[j] > bbox_maxs[j] - Constants::radius) {
+                    scene.particles[i].new_pos[j] = bbox_maxs[j] - Constants::radius;
+                }
+            }
+        }
     }
 
     for (auto& p : scene.particles) {
+        // should we damp the velocities? 
         p.vel = 1.0 / elapsed * (p.new_pos - p.pos);
         // TODO: apply vorticity confinement and XSPH viscosity
         p.pos = p.new_pos;
