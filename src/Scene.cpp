@@ -19,8 +19,8 @@ Scene::Scene(string filename) {
     for (int i = 0; i < num_particles; i++) {
         Particle p;
         fin >> p.id;
-        for (int j = 0; j < 3; j++) fin >> p.old_pos[j];
         for (int j = 0; j < 3; j++) fin >> p.pos[j];
+        for (int j = 0; j < 3; j++) fin >> p.new_pos[j];
         for (int j = 0; j < 3; j++) fin >> p.vel[j];
         particles.push_back(p);
     }
@@ -36,8 +36,8 @@ void Scene::save(string filename) {
 
     for (Particle p : particles) {
         fout << p.id;
-        for (int j = 0; j < 3; j++) fout << p.old_pos[j];
         for (int j = 0; j < 3; j++) fout << p.pos[j];
+        for (int j = 0; j < 3; j++) fout << p.new_pos[j];
         for (int j = 0; j < 3; j++) fout << p.vel[j];
     }
 }
