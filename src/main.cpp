@@ -17,14 +17,15 @@ int main(int argc, char* argv[]) {
     bool benchmark = false;
     int num_iterations = 1000000;
 
-    cout << "Initiating sim" << endl;
-    unique_ptr<Simulator> sim;
-    if (parallel) sim.reset(new ParallelSimulator());
-    else sim.reset(new SequentialSimulator());
-
     cout << "Loading scene" << endl;
     Scene scene(scene_file);
     cout << scene.particles.size() << " particles loaded" << endl;
+
+    cout << "Initiating sim" << endl;
+    unique_ptr<Simulator> sim;
+    if (parallel) sim.reset(new ParallelSimulator(scene));
+    else sim.reset(new SequentialSimulator(scene));
+
 
     cout << "Preparing graphics" << endl;
     GLFWwindow* window;
