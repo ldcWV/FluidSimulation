@@ -1,5 +1,6 @@
 #include "Simulator.hpp"
 #include "Constants.hpp"
+#include "Kernels.hpp"
 #include <iostream>
 
 using namespace glm;
@@ -8,9 +9,9 @@ SequentialSimulator::SequentialSimulator(const Scene& scene) {
     this->bbox_mins = scene.bbox_mins;
     this->bbox_maxs = scene.bbox_maxs;
 
-    this->grid_width = (bbox_maxs.x - bbox_mins.x) / Constants::grid_size + 1;
-    this->grid_height = (bbox_maxs.y - bbox_mins.y) / Constants::grid_size + 1;
-    this->grid_length = (bbox_maxs.z - bbox_mins.z) / Constants::grid_size + 1;
+    this->grid_width = (bbox_maxs.x - bbox_mins.x) / Constants::h + 1;
+    this->grid_height = (bbox_maxs.y - bbox_mins.y) / Constants::h + 1;
+    this->grid_length = (bbox_maxs.z - bbox_mins.z) / Constants::h + 1;
 
     this->grid = (int*)calloc(grid_width * grid_height * grid_length * Constants::max_particles_per_cell, sizeof(int));
     this->grid_cell_counts = (int*)calloc(grid_width * grid_height * grid_length, sizeof(int));
@@ -27,9 +28,9 @@ SequentialSimulator::~SequentialSimulator() {
 
 ivec3 SequentialSimulator::get_cell_coords(dvec3 pos) {
     return ivec3{
-        (pos.x - bbox_mins.x) / Constants::grid_size,
-        (pos.y - bbox_mins.y) / Constants::grid_size,
-        (pos.z - bbox_mins.z) / Constants::grid_size
+        (pos.x - bbox_mins.x) / Constants::h,
+        (pos.y - bbox_mins.y) / Constants::h,
+        (pos.z - bbox_mins.z) / Constants::h
     };
 }
 
