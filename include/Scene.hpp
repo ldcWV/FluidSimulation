@@ -12,5 +12,6 @@ struct Scene {
 
     Scene();
     Scene(string fname);
+    int load(string fname);
     void save(string fname);
 };

@@ -42,3 +42,4 @@ if( MSVC )
 endif()
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC SCENE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/scenes/")
+target_compile_definitions(${PROJECT_NAME} PUBLIC REPLAY_DIR="${CMAKE_CURRENT_SOURCE_DIR}/replays/")
