@@ -183,16 +183,16 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
     // TODO: vorticity 
 
     // XSPH viscosity
-    for (int i = 0; i < scene.particles.size(); ++i) {
-        delta_vel[i] = dvec3{0.0, 0.0, 0.0};
-        for (int j = 0; j < neighbor_counts[i]; j++) {
-            int neighbor_id = neighbors[i * Constants::max_neighbors + j];
-            dvec3 vel = scene.particles[neighbor_id].vel - scene.particles[i].vel;
-            double density = compute_density(scene, neighbor_id); 
-            delta_vel[i] += (Constants::xsph_c / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
-        }
-    }
-    for (int i = 0; i < scene.particles.size(); ++i) {
-        scene.particles[i].vel += delta_vel[i];
-    }    
+    // for (int i = 0; i < scene.particles.size(); ++i) {
+    //     delta_vel[i] = dvec3{0.0, 0.0, 0.0};
+    //     for (int j = 0; j < neighbor_counts[i]; j++) {
+    //         int neighbor_id = neighbors[i * Constants::max_neighbors + j];
+    //         dvec3 vel = scene.particles[neighbor_id].vel - scene.particles[i].vel;
+    //         double density = compute_density(scene, neighbor_id); 
+    //         delta_vel[i] += (Constants::xsph_c / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
+    //     }
+    // }
+    // for (int i = 0; i < scene.particles.size(); ++i) {
+    //     //scene.particles[i].vel += delta_vel[i];
+    // }    
 }
