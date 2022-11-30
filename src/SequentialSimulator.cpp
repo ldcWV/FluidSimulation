@@ -2,6 +2,6 @@
 
 SequentialSimulator::SequentialSimulator() {}
 
-void SequentialSimulator::update(float elapsed, Scene& scene) {
+void SequentialSimulator::update(double elapsed, Scene& scene) {
     return;
 }
