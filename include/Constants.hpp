@@ -12,4 +12,5 @@ namespace Constants {
     const size_t max_neighbors = 100;
     const int solver_iterations = 3;
     const double pi = 3.14159265358979323846;
+    const double rest_density = 1000;
 };

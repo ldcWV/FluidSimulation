@@ -63,14 +63,12 @@ void SequentialSimulator::recompute_neighbors(const Scene& scene) {
                         coords.y < 0 || coords.y >= grid_height ||
                         coords.z < 0 || coords.z >= grid_length) continue;
                     
-                    // Iterate through all particles here (not equal to ourselves) and add it to neighbors
+                    // Iterate through all particles here (including ourselves!) and add it to neighbors
                     int idx = get_cell_idx(coords);
                     for (int i = 0; i < grid_cell_counts[idx]; i++) {
                         int other_id = grid[idx*Constants::max_particles_per_cell + i];
-                        if (other_id != p.id) {
-                            if (neighbor_counts[p.id] < Constants::max_neighbors) {
-                                neighbors[p.id*Constants::max_neighbors + neighbor_counts[p.id]++] = other_id;
-                            }
+                        if (neighbor_counts[p.id] < Constants::max_neighbors) {
+                            neighbors[p.id*Constants::max_neighbors + neighbor_counts[p.id]++] = other_id;
                         }
                     }
                 }
