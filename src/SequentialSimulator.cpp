@@ -45,8 +45,8 @@ int SequentialSimulator::get_cell_idx(ivec3 coords) {
     return coords.x * grid_height*grid_length + coords.y * grid_length + coords.z;
 }
 
-void SequentialSimulator::recompute_grid(const Scene& scene) {
-    for (int i = 0; i < grid_width*grid_height*grid_length; i++) {
+void SequentialSimulator::recompute_grid(Scene& scene) {
+    for (size_t i = 0; i < grid_width*grid_height*grid_length; i++) {
         grid_cell_counts[i] = 0;
     }
     for (auto& p : scene.particles) {
@@ -57,7 +57,11 @@ void SequentialSimulator::recompute_grid(const Scene& scene) {
     }
 }
 
-void SequentialSimulator::recompute_neighbors(const Scene& scene) {
+void SequentialSimulator::recompute_neighbors(Scene& scene) {
+    for (size_t i = 0; i < scene.particles.size(); i++) {
+        neighbor_counts[i] = 0;
+    }
+
     for (auto& p : scene.particles) {
         ivec3 our_coords = get_cell_coords(p.new_pos);
 
@@ -84,7 +88,7 @@ void SequentialSimulator::recompute_neighbors(const Scene& scene) {
     }
 }
 
-double SequentialSimulator::compute_density(const Scene& scene, int particle_id) {
+double SequentialSimulator::compute_density(Scene& scene, int particle_id) {
     const Particle& target = scene.particles[particle_id];
     double density = 0.0;
     for (int i = 0; i < neighbor_counts[particle_id]; i++) {
@@ -95,13 +99,13 @@ double SequentialSimulator::compute_density(const Scene& scene, int particle_id)
     return density;
 }
 
-double SequentialSimulator::compute_constraint(const Scene& scene, int particle_id) {
+double SequentialSimulator::compute_constraint(Scene& scene, int particle_id) {
     const Particle& target = scene.particles[particle_id];
     return compute_density(scene, particle_id) / Constants::rest_density - 1.0;
 }
 
 // Assumes that grad_id is the id of a neighbor of particle_id
-dvec3 SequentialSimulator::compute_grad_constraint(const Scene& scene, int constraint_id, int grad_id) {
+dvec3 SequentialSimulator::compute_grad_constraint(Scene& scene, int constraint_id, int grad_id) {
     const Particle& constraint_particle = scene.particles[constraint_id];
     const dvec3& constraint_pos = constraint_particle.new_pos;
     if (constraint_id == grad_id) {
@@ -183,16 +187,16 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
     // TODO: vorticity 
 
     // XSPH viscosity
-    // for (int i = 0; i < scene.particles.size(); ++i) {
-    //     delta_vel[i] = dvec3{0.0, 0.0, 0.0};
-    //     for (int j = 0; j < neighbor_counts[i]; j++) {
-    //         int neighbor_id = neighbors[i * Constants::max_neighbors + j];
-    //         dvec3 vel = scene.particles[neighbor_id].vel - scene.particles[i].vel;
-    //         double density = compute_density(scene, neighbor_id); 
-    //         delta_vel[i] += (Constants::xsph_c / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
-    //     }
-    // }
-    // for (int i = 0; i < scene.particles.size(); ++i) {
-    //     //scene.particles[i].vel += delta_vel[i];
-    // }    
+    for (int i = 0; i < scene.particles.size(); ++i) {
+        delta_vel[i] = dvec3{0.0, 0.0, 0.0};
+        for (int j = 0; j < neighbor_counts[i]; j++) {
+            int neighbor_id = neighbors[i * Constants::max_neighbors + j];
+            dvec3 vel = scene.particles[neighbor_id].vel - scene.particles[i].vel;
+            double density = compute_density(scene, neighbor_id); 
+            delta_vel[i] += (Constants::xsph_c / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
+        }
+    }
+    for (int i = 0; i < scene.particles.size(); ++i) {
+        scene.particles[i].vel += delta_vel[i];
+    }    
 }

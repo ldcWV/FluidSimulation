@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
     cout << "Starting main" << endl;
     // todo: parse these arguments
     bool parallel = false;
-    string scene_name = "1000_random_narrow";
+    string scene_name = "10000_random_narrow";
     bool benchmark = false;
     int num_iterations = 1000000;
     bool save_replay = false;
@@ -64,6 +64,7 @@ int main(int argc, char* argv[]) {
     for (int i = 0; i < num_iterations; i++) {
         if (glfwWindowShouldClose(window)) break;
         string replay_file = string(replay_folder) + "/" + string(8 - min(8U, to_string(replay_idx).length()), '0') + to_string(replay_idx) + ".txt";
+        replay_idx++;
 
         /* Render here */
         // TODO: substeps with dt / # substeps
@@ -72,7 +73,6 @@ int main(int argc, char* argv[]) {
                 replay_idx = 0;
                 continue;
             }
-            replay_idx++;
         } else {
             sim->update(Constants::dt, scene);
         }

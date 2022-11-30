@@ -3,7 +3,7 @@ import random
 num_particles = 10000
 bbox_mins = [-5, -5, -0.2]
 bbox_maxs = [5, 5, 0.2]
-pad = [4, 4, 0.15]
+pad = [1, 1, 0.15]
 particles = []
 
 for i in range(num_particles):

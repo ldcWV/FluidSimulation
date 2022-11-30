@@ -25,11 +25,11 @@ private:
 
     glm::ivec3 get_cell_coords(glm::dvec3 pos);
     int get_cell_idx(glm::ivec3 coords);
-    void recompute_grid(const Scene& scene);
-    void recompute_neighbors(const Scene& scene);
-    double compute_density(const Scene& scene, int particle_id);
-    double compute_constraint(const Scene& scene, int particle_id);
-    glm::dvec3 compute_grad_constraint(const Scene& scene, int constraint_id, int grad_id);
+    void recompute_grid(Scene& scene);
+    void recompute_neighbors(Scene& scene);
+    double compute_density(Scene& scene, int particle_id);
+    double compute_constraint(Scene& scene, int particle_id);
+    glm::dvec3 compute_grad_constraint(Scene& scene, int constraint_id, int grad_id);
 };
 
 struct ParallelSimulator : Simulator {

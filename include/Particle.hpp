@@ -7,4 +7,5 @@ struct Particle {
     glm::dvec3 pos;
     glm::dvec3 new_pos;
     glm::dvec3 vel;
+    int mark; // stores info for debugging
 };

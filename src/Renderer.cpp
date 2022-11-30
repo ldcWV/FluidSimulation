@@ -62,8 +62,8 @@ void Renderer::draw(const Scene& scene) {
     DrawLine(scene.bbox_mins.x, scene.bbox_maxs.y, scene.bbox_mins.x, scene.bbox_mins.y);
 
     // Draw particles
-    glColor3f(1.0, 0.0, 0.0);
     for (auto particle : scene.particles) {
+        glColor3f(1.0, 0.0, 0.0);
         DrawCircle(particle.pos.x, particle.pos.y, Constants::radius, 64);
     }
 }
