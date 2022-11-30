@@ -1,0 +1,27 @@
+import random
+
+num_particles = 10000
+bbox_mins = [-5, -5, -5]
+bbox_maxs = [5, 5, 5]
+pad = 1
+particles = []
+
+for i in range(num_particles):
+    particles.append((
+        random.uniform(bbox_mins[0]+pad, bbox_maxs[0]-pad),
+        random.uniform(bbox_mins[1]+pad, bbox_maxs[1]-pad),
+        random.uniform(bbox_mins[2]+pad, bbox_maxs[2]-pad),
+    ))
+
+f = open("10000_random.txt", "w")
+f.write(str(num_particles) + "\n")
+for i in range(3):
+    f.write(str(bbox_mins[i]) + " ")
+for i in range(3):
+    f.write(str(bbox_maxs[i]))
+    if i != 2:
+        f.write(" ")
+f.write("\n")
+for i, (x,y,z) in enumerate(particles):
+    f.write(str(i) + " " + str(x) + " " + str(y) + " " + str(z) + " 0.0 0.0 0.0 0.0 0.0 0.0\n")
+f.close()
