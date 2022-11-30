@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
     cout << "Starting main" << endl;
     // todo: parse arguments (parallel/sequential, scene file, benchmark/visualization, num iterations)
     bool parallel = false;
-    string scene_file = "../../scenes/1000_random.txt";
+    string scene_file = "../../scenes/10000_random_narrow.txt";
     bool benchmark = false;
     int num_iterations = 1000000;
 

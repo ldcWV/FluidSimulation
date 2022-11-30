@@ -17,6 +17,8 @@ private:
     int* grid_cell_counts;
     int* neighbors;
     int* neighbor_counts;
+    double* lambdas;
+    glm::dvec3* delta_pos;
     glm::dvec3 bbox_mins;
     glm::dvec3 bbox_maxs;
 
@@ -24,6 +26,9 @@ private:
     int get_cell_idx(glm::ivec3 coords);
     void recompute_grid(const Scene& scene);
     void recompute_neighbors(const Scene& scene);
+    double compute_density(const Scene& scene, int particle_id);
+    double compute_constraint(const Scene& scene, int particle_id);
+    glm::dvec3 compute_grad_constraint(const Scene& scene, int constraint_id, int grad_id);
 };
 
 struct ParallelSimulator : Simulator {
