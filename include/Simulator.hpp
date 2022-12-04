@@ -1,5 +1,6 @@
 #pragma once
 #include "Scene.hpp"
+#include "Particle.hpp"
 
 struct Simulator {
     virtual void update(double elapsed, Scene& scene) = 0;
@@ -35,6 +36,15 @@ private:
 struct ParallelSimulator : Simulator {
     ParallelSimulator(const Scene& scene);
     ~ParallelSimulator();
-
     void update(double elapsed, Scene& scene) override;
+
+private: 
+    size_t grid_width, grid_height, grid_length;
+    double* lambdas; 
+    Particle* particles;
+    glm::dvec3* delta_pos, delta_vel;
+    glm::dvec3 bbox_mins, bbox_maxs;
+
+    glm::ivec3 get_cell_coords(glm::dvec3 pos);
+    int get_cell_idx(glm::ivec3 coords); 
 };
