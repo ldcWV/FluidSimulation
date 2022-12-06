@@ -18,7 +18,7 @@ private:
     float deltaTime = 0.0f;
     Shader bboxShader, particleShader;
     GLuint bbox_VAO, bbox_VBO, bbox_EBO;
-    GLuint particle_VAO, particle_VBO, particle_EBO;
+    GLuint particle_VAO, particle_VBO, particle_EBO, particle_instanceVBO;
     bool mouseContained = false;
 
     void framebufferSizeCallback(GLFWwindow* window, int width, int height);
