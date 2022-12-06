@@ -23,6 +23,7 @@ glm::ivec3 ParallelSimulator::get_cell_coords(glm::dvec3 pos) {
     return glm::ivec3{0, 0, 0};
 }
 
-__device__ __host__ int ParallelSimulator::get_cell_idx(glm::ivec3 coords) {
+__device__ int ParallelSimulator::get_cell_idx(glm::ivec3 coords) {
+    glm::ivec3 test{0, 0, 0};
     return 0;
 }

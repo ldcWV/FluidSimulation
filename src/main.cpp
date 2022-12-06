@@ -1,13 +1,13 @@
+#include <glad/gl.h>
+#include <GLFW/glfw3.h>
 #include "Constants.hpp"
 #include "Scene.hpp"
 #include "Simulator.hpp"
 #include <iostream>
 #include "Renderer.hpp"
 #include <memory>
-#include <GLFW/glfw3.h>
 #include "Renderer.hpp"
 #include <direct.h>
-//#include <cuda_runtime.h>
 
 using namespace std;
 
@@ -38,20 +38,7 @@ int main(int argc, char* argv[]) {
 
 
     cout << "Preparing graphics" << endl;
-    GLFWwindow* window;
-    if (!glfwInit()) {
-        cout << "glfwInit() failed" << endl;
-        return -1;
-    }
-    window = glfwCreateWindow(1280, 720, "Epic Fluid Simulation", NULL, NULL);
-    if (!window) {
-        cout << "Unable to create window" << endl;
-        glfwTerminate();
-        return -1;
-    }
-
-    cout << "Preparing renderer" << endl;
-    Renderer renderer(window);
+    Renderer renderer;
 
     string replay_folder = string(REPLAY_DIR) + scene_name;
     if (save_replay) {
@@ -61,9 +48,7 @@ int main(int argc, char* argv[]) {
     int replay_idx = 0;
 
     cout << "Starting main loop" << endl;
-    /* Loop until the user closes the window */
     for (int i = 0; i < num_iterations; i++) {
-        if (glfwWindowShouldClose(window)) break;
         string replay_file = string(replay_folder) + "/" + string(8 - min(8U, to_string(replay_idx).length()), '0') + to_string(replay_idx) + ".txt";
         replay_idx++;
 
@@ -77,17 +62,11 @@ int main(int argc, char* argv[]) {
         } else {
             sim->update(Constants::dt, scene);
         }
-        renderer.draw(scene);
+        if (!renderer.draw(scene)) break;
 
         if (save_replay) {
             scene.save(replay_file);
         }
-
-        /* Swap front and back buffers */
-        glfwSwapBuffers(window);
-
-        /* Poll for and process events */
-        glfwPollEvents();
     }
 
     glfwTerminate();

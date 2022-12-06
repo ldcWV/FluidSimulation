@@ -14,27 +14,25 @@ set(SOURCES
     src/main.cpp
     src/Scene.cpp
     src/SequentialSimulator.cpp
-    # src/ParallelSimulator.cpp
     src/Renderer.cpp
     src/ParallelSimulator.cu
+    src/Shader.cpp
+    src/Camera.cpp
 )
 
 find_package( OpenGL REQUIRED )
-#include_directories( ${OPENGL_INCLUDE_DIRS} )
-#message(OPENGL_INCLUDE_DIRS="${OPENGL_INCLUDE_DIRS}")
+
+include_directories( ${OPENGL_INCLUDE_DIRS} )
 
 set( GLFW_BUILD_DOCS OFF CACHE BOOL  "GLFW lib only" )
 set( GLFW_INSTALL OFF CACHE BOOL  "GLFW lib only" )
 
 add_subdirectory( glfw )
 
-#find_package(CUDAToolkit REQUIRED)
-#include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}) 
-#message(CUDA_DIRS="${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
+add_subdirectory( glad )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
-#target_link_libraries( ${PROJECT_NAME} ${CUDA_RUNTIME_LIBRARY} )
-target_link_libraries( ${PROJECT_NAME} ${OPENGL_LIBRARIES} glfw )
+target_link_libraries( ${PROJECT_NAME} ${OPENGL_LIBRARIES} glfw glad )
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE
@@ -42,5 +40,6 @@ target_include_directories(${PROJECT_NAME}
         ${PROJECT_SOURCE_DIR}/lib
 )
 
+target_compile_definitions(${PROJECT_NAME} PUBLIC SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}/src/")
 target_compile_definitions(${PROJECT_NAME} PUBLIC SCENE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/scenes/")
 target_compile_definitions(${PROJECT_NAME} PUBLIC REPLAY_DIR="${CMAKE_CURRENT_SOURCE_DIR}/replays/")
