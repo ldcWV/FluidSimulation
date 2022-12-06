@@ -15,11 +15,11 @@ int main(int argc, char* argv[]) {
     cout << "Starting main" << endl;
     // todo: parse these arguments
     bool parallel = false;
-    string scene_name = "10000_random_narrow";
+    string scene_name = "1000_random";
     bool benchmark = false;
     int num_iterations = 1000000;
     bool save_replay = false;
-    bool play_replay = true;
+    bool play_replay = false;
 
     if (save_replay && play_replay) {
         cout << "Cannot both save and play replay" << endl;
@@ -35,7 +35,6 @@ int main(int argc, char* argv[]) {
     unique_ptr<Simulator> sim;
     if (parallel) sim.reset(new ParallelSimulator(scene));
     else sim.reset(new SequentialSimulator(scene));
-
 
     cout << "Preparing graphics" << endl;
     Renderer renderer;
