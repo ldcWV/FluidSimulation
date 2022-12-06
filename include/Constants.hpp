@@ -6,7 +6,7 @@ namespace Constants {
     const double dt = 1.0 / 60.0 * 0.2;
     const double eps = 1e-5;
     const double mass = 1.0 / 30.0;
-    const double radius = 0.02;
+    const double radius = 0.1;
     const double h = 0.1; // not the same thing as radius 
     const size_t max_particles_per_cell = 100;
     const size_t max_neighbors = 100;

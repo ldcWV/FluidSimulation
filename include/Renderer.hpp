@@ -16,9 +16,9 @@ private:
     Camera camera;
     float lastFrameTime = 0.0f;
     float deltaTime = 0.0f;
-    Shader particleShader;
-    Shader bboxShader;
-    GLuint bbox_VAO;
+    Shader bboxShader, particleShader;
+    GLuint bbox_VAO, bbox_VBO, bbox_EBO;
+    GLuint particle_VAO, particle_VBO, particle_EBO;
 
     void framebufferSizeCallback(GLFWwindow* window, int width, int height);
     void processInput(GLFWwindow* window);
@@ -26,4 +26,5 @@ private:
     void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
     void drawBbox(const Scene& scene);
+    void drawParticles(const Scene& scene);
 };

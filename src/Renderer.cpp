@@ -4,6 +4,7 @@
 #include "Constants.hpp"
 #include "Shader.hpp"
 #include "Camera.hpp"
+#include <glm/gtc/matrix_transform.hpp>        
 
 using namespace glm;
 using namespace std;
@@ -116,24 +117,65 @@ Renderer::Renderer() {
 
     // Prepare bbox_VAO
     glGenVertexArrays(1, &bbox_VAO);
-    GLuint bbox_VBO, bbox_EBO;
+    glBindVertexArray(bbox_VAO);
+
     glGenBuffers(1, &bbox_VBO);
     glGenBuffers(1, &bbox_EBO);
 
-    glBindVertexArray(bbox_VAO);
     glBindBuffer(GL_ARRAY_BUFFER, bbox_VBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bbox_EBO);
 
-    unsigned int indices[] = {
+    unsigned int bbox_indices[] = {
         0, 1, 1, 2, 2, 3, 3, 0, // bottom face
         0, 4, 1, 5, 2, 6, 3, 7, // sides
         4, 5, 5, 6, 6, 7, 7, 4 // top face
     };
 
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(bbox_indices), bbox_indices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
+
+    // Prepare particle_VAO
+    glGenVertexArrays(1, &particle_VAO);
+    glBindVertexArray(particle_VAO);
+
+    glGenBuffers(1, &particle_VBO);
+    glGenBuffers(1, &particle_EBO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, particle_VBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, particle_EBO);
+
+    float particle_vertices[] = {
+        -1, -1, -1,
+         1, -1, -1,
+         1,  1, -1,
+        -1,  1, -1,
+        -1, -1,  1,
+         1, -1,  1,
+         1,  1,  1,
+        -1,  1,  1
+    };
+
+    unsigned int particle_indices[] = {
+        0, 1, 2, // bottom
+        0, 2, 3,
+        0, 1, 5, // front
+        0, 4, 5,
+        1, 5, 6, // right
+        1, 2, 6,
+        2, 3, 6, // back
+        3, 6, 7,
+        0, 3, 7, // left
+        0, 4, 7,
+        4, 5, 6, // top
+        4, 6, 7
+    };
+
+    glBufferData(GL_ARRAY_BUFFER, sizeof(particle_vertices), particle_vertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
+
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(particle_indices), particle_indices, GL_STATIC_DRAW);
 }
 
 bool Renderer::draw(const Scene& scene) {
@@ -146,16 +188,14 @@ bool Renderer::draw(const Scene& scene) {
 
     glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    // glm::mat4 model(1.f);
-    // glm::mat4 view = camera.getViewMatrix();
-    // glm::mat4 projection = glm::perspective(glm::radians(camera.FOV), float(screen_width/screen_height), 0.1f, 100.f);
 
     drawBbox(scene);
+    drawParticles(scene);
 
     glfwSwapBuffers(window);
     glfwPollEvents();
 
-    float currentFrameTime = glfwGetTime();
+    float currentFrameTime = float(glfwGetTime());
     deltaTime = currentFrameTime - lastFrameTime;
     lastFrameTime = currentFrameTime;
 
@@ -178,14 +218,36 @@ void Renderer::drawBbox(const Scene& scene) {
     };
 
     glBindVertexArray(bbox_VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, bbox_VBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bbox_EBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
 
-    glm::mat4 view = camera.getViewMatrix();
-    glm::mat4 projection = glm::perspective(glm::radians(camera.FOV), float(screen_width/screen_height), 0.1f, 100.f);
-    glm::vec4 test = projection * view * glm::vec4(vertices[0], vertices[1], vertices[2], 1.f);
+    mat4 view = camera.getViewMatrix();
+    mat4 projection = perspective(radians(camera.FOV), float(screen_width/screen_height), 0.1f, 100.f);
     bboxShader.use();
     bboxShader.setMat4("view", view);
     bboxShader.setMat4("projection", projection);
 
     glDrawElements(GL_LINES, 24, GL_UNSIGNED_INT, 0);
+}
+
+void Renderer::drawParticles(const Scene& scene) {
+    mat4 view = camera.getViewMatrix();
+    mat4 projection = perspective(radians(camera.FOV), float(screen_width/screen_height), 0.1f, 100.f);
+
+    glBindVertexArray(particle_VAO);
+    glBindBuffer(GL_ARRAY_BUFFER, particle_VBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, particle_EBO);
+
+    particleShader.use();
+    particleShader.setMat4("view", view);
+    particleShader.setMat4("projection", projection);
+
+    for (const auto& p : scene.particles) {
+        mat4 model(1.f);
+        model = translate(model, vec3(p.pos));
+        model = scale(model, vec3(Constants::radius));
+        particleShader.setMat4("model", model);
+        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+    }
 }

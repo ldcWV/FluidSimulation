@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
     cout << "Starting main" << endl;
     // todo: parse these arguments
     bool parallel = false;
-    string scene_name = "1000_random";
+    string scene_name = "10000_random";
     bool benchmark = false;
     int num_iterations = 1000000;
     bool save_replay = false;
