@@ -167,14 +167,19 @@ Renderer::Renderer() {
 
     glGenBuffers(1, &particle_VBO);
     glGenBuffers(1, &particle_EBO);
+    glGenBuffers(1, &particle_instanceVBO);
 
     glBindBuffer(GL_ARRAY_BUFFER, particle_VBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, particle_EBO);
-
     glBufferData(GL_ARRAY_BUFFER, sizeof(Sphere::vertices), Sphere::vertices, GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
 
+    glBindBuffer(GL_ARRAY_BUFFER, particle_instanceVBO);
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
+    glVertexAttribDivisor(1, 1);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, particle_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Sphere::indices), Sphere::indices, GL_STATIC_DRAW);
 }
 
@@ -243,12 +248,13 @@ void Renderer::drawParticles(const Scene& scene) {
     particleShader.setMat4("view", view);
     particleShader.setMat4("projection", projection);
     particleShader.setVec3("lightDir", normalize(vec3(1, 2, 3)));
+    particleShader.setFloat("scale", float(Constants::radius));
 
+    vector<vec3> models;
     for (const auto& p : scene.particles) {
-        mat4 model(1.f);
-        model = translate(model, vec3(p.pos));
-        model = scale(model, vec3(float(Constants::radius)));
-        particleShader.setMat4("model", model);
-        glDrawElements(GL_TRIANGLES, 60, GL_UNSIGNED_INT, 0);
+        models.push_back(p.pos);
     }
+    glBindBuffer(GL_ARRAY_BUFFER, particle_instanceVBO);
+    glBufferData(GL_ARRAY_BUFFER, models.size() * sizeof(vec3), &models[0], GL_DYNAMIC_DRAW);
+    glDrawElementsInstanced(GL_TRIANGLES, 60, GL_UNSIGNED_INT, (void*)0, models.size());
 }
