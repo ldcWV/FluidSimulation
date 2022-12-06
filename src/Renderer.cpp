@@ -247,7 +247,8 @@ void Renderer::drawParticles(const Scene& scene) {
     particleShader.use();
     particleShader.setMat4("view", view);
     particleShader.setMat4("projection", projection);
-    particleShader.setVec3("lightDir", normalize(vec3(1, 2, 3)));
+    particleShader.setVec3("lightPos", vec3(1, 2, 3));
+    particleShader.setVec3("cameraPos", camera.Position);
     particleShader.setFloat("scale", float(Constants::radius));
 
     vector<vec3> models;
