@@ -11,7 +11,7 @@ struct Scene {
     vector<Particle> particles;
 
     Scene();
-    Scene(string fname);
-    int load(string fname);
+    Scene(string fname, bool binary);
+    int load(string fname, bool binary);
     void save(string fname);
 };

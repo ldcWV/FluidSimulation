@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
     bool benchmark = false;
     int num_iterations = 1000000;
     bool save_replay = false;
-    bool play_replay = false;
+    bool play_replay = true;
 
     if (save_replay && play_replay) {
         cout << "Cannot both save and play replay" << endl;
@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
 
     string scene_file = string(SCENE_DIR) + scene_name + ".txt";
     cout << "Loading scene from " << scene_file << endl;
-    Scene scene(scene_file);
+    Scene scene(scene_file, false);
     cout << scene.particles.size() << " particles loaded" << endl;
 
     cout << "Initiating sim" << endl;
@@ -48,13 +48,13 @@ int main(int argc, char* argv[]) {
 
     cout << "Starting main loop" << endl;
     for (int i = 0; i < num_iterations; i++) {
-        string replay_file = string(replay_folder) + "/" + string(8 - min(8U, to_string(replay_idx).length()), '0') + to_string(replay_idx) + ".txt";
+        string replay_file = string(replay_folder) + "/" + string(8 - min(8U, to_string(replay_idx).length()), '0') + to_string(replay_idx) + ".bin";
         replay_idx++;
 
         /* Render here */
         // TODO: substeps with dt / # substeps
         if (play_replay) {
-            if (scene.load(replay_file) == -1) {
+            if (scene.load(replay_file, true) == -1) {
                 replay_idx = 0;
                 continue;
             }
