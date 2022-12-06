@@ -15,28 +15,40 @@ void Renderer::framebufferSizeCallback(GLFWwindow* window, int width, int height
     glViewport(0, 0, width, height);
 }
 
-void Renderer::processInput(GLFWwindow* window) {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-        glfwSetWindowShouldClose(window, true);
+void Renderer::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+    if (button == GLFW_MOUSE_BUTTON_1 && action == GLFW_PRESS) {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        mouseContained = true;
     }
+}
 
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-        camera.processKeyboard(CameraMovement::FORWARD, deltaTime);
+void Renderer::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+        mouseContained = false;
     }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-        camera.processKeyboard(CameraMovement::BACKWARD, deltaTime);
-    }
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-        camera.processKeyboard(CameraMovement::LEFT, deltaTime);
-    }
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        camera.processKeyboard(CameraMovement::RIGHT, deltaTime);
-    }
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-        camera.processKeyboard(CameraMovement::UP, deltaTime);
-    }
-    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-        camera.processKeyboard(CameraMovement::DOWN, deltaTime);
+}
+
+void Renderer::processInput(GLFWwindow* window) {
+    if (mouseContained) {
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+            camera.processKeyboard(CameraMovement::FORWARD, deltaTime);
+        }
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+            camera.processKeyboard(CameraMovement::BACKWARD, deltaTime);
+        }
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+            camera.processKeyboard(CameraMovement::LEFT, deltaTime);
+        }
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+            camera.processKeyboard(CameraMovement::RIGHT, deltaTime);
+        }
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+            camera.processKeyboard(CameraMovement::UP, deltaTime);
+        }
+        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
+            camera.processKeyboard(CameraMovement::DOWN, deltaTime);
+        }
     }
 }
 
@@ -44,22 +56,28 @@ void Renderer::mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     static bool firstMouse = true;
     static double lastX = 0, lastY = 0;
 
-    if (firstMouse) {
+    if (mouseContained) {
+        if (firstMouse) {
+            lastX = xpos;
+            lastY = ypos;
+            firstMouse = false;
+        }
+
+        float xoffset = float(xpos - lastX);
+        float yoffset = float(lastY - ypos);
+        camera.processMouseMovement(xoffset, yoffset, true);
+
         lastX = xpos;
         lastY = ypos;
-        firstMouse = false;
+    } else {
+        firstMouse = true;
     }
-
-    float xoffset = float(xpos - lastX);
-    float yoffset = float(lastY - ypos);
-    camera.processMouseMovement(xoffset, yoffset, true);
-
-    lastX = xpos;
-    lastY = ypos;
 }
 
 void Renderer::scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
-    camera.processMouseScroll((float)yoffset);
+    if (mouseContained) {
+        camera.processMouseScroll((float)yoffset);
+    }
 }
 
 Renderer::Renderer() {
@@ -100,8 +118,15 @@ Renderer::Renderer() {
     };
     glfwSetScrollCallback(window, scrollCallbackLambda);
 
-    // Disappear cursor and keep it in the window
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    auto mouseButtonCallbackLambda = [](GLFWwindow* window, int button, int action, int mods) {
+        static_cast<Renderer*>(glfwGetWindowUserPointer(window))->mouseButtonCallback(window, button, action, mods);
+    };
+    glfwSetMouseButtonCallback(window, mouseButtonCallbackLambda);
+
+    auto keyCallbackLambda = [](GLFWwindow* window, int key, int scancode, int action, int mods) {
+        static_cast<Renderer*>(glfwGetWindowUserPointer(window))->keyCallback(window, key, scancode, action, mods);
+    };
+    glfwSetKeyCallback(window, keyCallbackLambda);
 
     camera = Camera(vec3(0.f, 0.f, 20.f));
 
@@ -247,7 +272,7 @@ void Renderer::drawParticles(const Scene& scene) {
     for (const auto& p : scene.particles) {
         mat4 model(1.f);
         model = translate(model, vec3(p.pos));
-        model = scale(model, vec3(Constants::radius));
+        model = scale(model, vec3(float(Constants::radius)));
         particleShader.setMat4("model", model);
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
     }

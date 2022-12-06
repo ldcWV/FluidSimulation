@@ -19,10 +19,13 @@ private:
     Shader bboxShader, particleShader;
     GLuint bbox_VAO, bbox_VBO, bbox_EBO;
     GLuint particle_VAO, particle_VBO, particle_EBO;
+    bool mouseContained = false;
 
     void framebufferSizeCallback(GLFWwindow* window, int width, int height);
     void processInput(GLFWwindow* window);
+    void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
     void mouseCallback(GLFWwindow* window, double xpos, double ypos);
+    void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
     void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
     void drawBbox(const Scene& scene);
