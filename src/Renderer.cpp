@@ -227,7 +227,7 @@ void Renderer::drawBbox(const Scene& scene) {
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_DYNAMIC_DRAW);
 
     mat4 view = camera.getViewMatrix();
-    mat4 projection = perspective(radians(camera.FOV), float(screen_width/screen_height), 0.1f, 100.f);
+    mat4 projection = perspective(radians(camera.FOV), float(screen_width)/screen_height, 0.1f, 100.f);
     bboxShader.use();
     bboxShader.setMat4("view", view);
     bboxShader.setMat4("projection", projection);
@@ -237,7 +237,7 @@ void Renderer::drawBbox(const Scene& scene) {
 
 void Renderer::drawParticles(const Scene& scene) {
     mat4 view = camera.getViewMatrix();
-    mat4 projection = perspective(radians(camera.FOV), float(screen_width/screen_height), 0.1f, 100.f);
+    mat4 projection = perspective(radians(camera.FOV), float(screen_width)/screen_height, 0.1f, 100.f);
 
     glBindVertexArray(particle_VAO);
     glBindBuffer(GL_ARRAY_BUFFER, particle_VBO);
