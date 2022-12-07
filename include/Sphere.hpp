@@ -1,20 +1,54 @@
 #pragma once
+#include <vector>
+#include <glm/glm.hpp>
 
-// Sphere data from http://www.glprogramming.com/red/chapter02.html
+using namespace std;
+using namespace glm;
 
 namespace Sphere {
-    const float X = .525731112119133606;
-    const float Z = .850650808352039932;
+    vector<vec3> getVertices() {
+        const int divs = 10;
+        vector<vec3> res;
 
-    const float vertices[] = {
-        -X, 0.0, Z, X, 0.0, Z, -X, 0.0, -Z, X, 0.0, -Z,
-        0.0, Z, X, 0.0, Z, -X, 0.0, -Z, X, 0.0, -Z, -X,
-        Z, X, 0.0, -Z, X, 0.0, Z, -X, 0.0, -Z, -X, 0.0
-    };
-    const unsigned int indices[] = {
-        0,4,1,0,9,4,9,5,4,4,5,8,4,8,1,
-        8,10,1,8,3,10,5,3,8,5,2,3,2,7,3,
-        7,10,3,7,6,10,7,11,6,11,0,6,0,1,6,
-        6,1,10,9,0,11,9,11,2,9,2,5,7,2,11
-    };
+        auto addSquare = [&](float ii, float jj, float kk, int i_idx, int j_idx) {
+            int k_idx = 3 - (i_idx + j_idx);
+            vec3 i_mask(0.f); i_mask[i_idx] = 1.f;
+            vec3 j_mask(0.f); j_mask[j_idx] = 1.f;
+            vec3 k_mask(0.f); k_mask[k_idx] = 1.f;
+
+            vec3 p0 = i_mask * ii + j_mask * jj + k_mask * kk;
+            vec3 p1 = p0 + i_mask * (2.f/divs);
+            vec3 p2 = p0 + i_mask * (2.f/divs) + j_mask * (2.f/divs);
+            vec3 p3 = p0 + j_mask * (2.f/divs);
+
+            p0 = normalize(p0);
+            p1 = normalize(p1);
+            p2 = normalize(p2);
+            p3 = normalize(p3);
+
+            res.push_back(p0);
+            res.push_back(p1);
+            res.push_back(p2);
+
+            res.push_back(p0);
+            res.push_back(p2);
+            res.push_back(p3);
+        };
+
+        for (int i = 0; i < divs; i++) {
+            for (int j = 0; j < divs; j++) {
+                float ii = 2.f * i / divs - 1;
+                float jj = 2.f * j / divs - 1;
+
+                addSquare(ii, jj, 1, 0, 1);
+                addSquare(ii, jj, -1, 0, 1);
+                addSquare(ii, jj, 1, 0, 2);
+                addSquare(ii, jj, -1, 0, 2);
+                addSquare(ii, jj, 1, 1, 2);
+                addSquare(ii, jj, -1, 1, 2);
+            }
+        }
+
+        return res;
+    }
 };

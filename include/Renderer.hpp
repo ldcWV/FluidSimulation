@@ -4,6 +4,11 @@
 #include <GLFW/glfw3.h>
 #include "Camera.hpp"
 #include "Shader.hpp"
+#include <vector>
+#include <glm/glm.hpp>
+
+using namespace std;
+using namespace glm;
 
 struct Renderer {
     Renderer();
@@ -18,7 +23,8 @@ private:
     float deltaTime = 0.0f;
     Shader bboxShader, particleShader;
     GLuint bbox_VAO, bbox_VBO, bbox_EBO;
-    GLuint particle_VAO, particle_VBO, particle_EBO, particle_instanceVBO;
+    GLuint particle_VAO, particle_VBO, particle_instanceVBO;
+    vector<vec3> sphere_vertices;
     bool mouseContained = false;
 
     void framebufferSizeCallback(GLFWwindow* window, int width, int height);

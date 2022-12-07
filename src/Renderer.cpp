@@ -132,6 +132,8 @@ Renderer::Renderer() {
     camera = Camera(vec3(0.f, 0.f, 20.f));
 
     glEnable(GL_DEPTH_TEST);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
 
     std::string vPath = std::string(SRC_DIR) + "ParticleShader.vert";
     std::string fPath = std::string(SRC_DIR) + "ParticleShader.frag";
@@ -166,11 +168,11 @@ Renderer::Renderer() {
     glBindVertexArray(particle_VAO);
 
     glGenBuffers(1, &particle_VBO);
-    glGenBuffers(1, &particle_EBO);
     glGenBuffers(1, &particle_instanceVBO);
 
     glBindBuffer(GL_ARRAY_BUFFER, particle_VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(Sphere::vertices), Sphere::vertices, GL_STATIC_DRAW);
+    sphere_vertices = Sphere::getVertices();
+    glBufferData(GL_ARRAY_BUFFER, sphere_vertices.size() * sizeof(vec3), &sphere_vertices[0], GL_STATIC_DRAW);
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
 
@@ -178,9 +180,6 @@ Renderer::Renderer() {
     glEnableVertexAttribArray(1);
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
     glVertexAttribDivisor(1, 1);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, particle_EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Sphere::indices), Sphere::indices, GL_STATIC_DRAW);
 }
 
 bool Renderer::draw(const Scene& scene) {
@@ -242,7 +241,6 @@ void Renderer::drawParticles(const Scene& scene) {
 
     glBindVertexArray(particle_VAO);
     glBindBuffer(GL_ARRAY_BUFFER, particle_VBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, particle_EBO);
 
     particleShader.use();
     particleShader.setMat4("view", view);
@@ -257,5 +255,5 @@ void Renderer::drawParticles(const Scene& scene) {
     }
     glBindBuffer(GL_ARRAY_BUFFER, particle_instanceVBO);
     glBufferData(GL_ARRAY_BUFFER, models.size() * sizeof(vec3), &models[0], GL_DYNAMIC_DRAW);
-    glDrawElementsInstanced(GL_TRIANGLES, 60, GL_UNSIGNED_INT, (void*)0, models.size());
+    glDrawArraysInstanced(GL_TRIANGLES, 0, sphere_vertices.size(), models.size());
 }

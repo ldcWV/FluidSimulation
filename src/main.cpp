@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
 
     cout << "Starting main loop" << endl;
     for (int i = 0; i < num_iterations; i++) {
-        string replay_file = string(replay_folder) + "/" + string(8 - min(8U, to_string(replay_idx).length()), '0') + to_string(replay_idx) + ".bin";
+        string replay_file = string(replay_folder) + "/" + string(8 - std::min(8U, to_string(replay_idx).length()), '0') + to_string(replay_idx) + ".bin";
         replay_idx++;
 
         /* Render here */
