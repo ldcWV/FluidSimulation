@@ -7,6 +7,12 @@ using namespace std;
 Scene::Scene() {
 }
 
+Scene::Scene(const Scene& other) {
+    this->bbox_mins = other.bbox_mins;
+    this->bbox_maxs = other.bbox_maxs;
+    this->particles = other.particles; 
+}
+
 Scene::Scene(string filename, bool binary) {
     load(filename, binary);
 }

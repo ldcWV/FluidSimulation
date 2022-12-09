@@ -19,6 +19,7 @@ private:
     int* neighbors;
     int* neighbor_counts;
     double* lambdas;
+    double* densities;
     glm::dvec3* delta_pos;
     glm::dvec3* delta_vel;
     glm::dvec3 bbox_mins;

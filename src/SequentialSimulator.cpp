@@ -18,6 +18,7 @@ SequentialSimulator::SequentialSimulator(const Scene& scene) {
     this->neighbors = (int*)calloc(scene.particles.size()*Constants::max_neighbors, sizeof(int));
     this->neighbor_counts = (int*)calloc(scene.particles.size(), sizeof(int));
     this->lambdas = (double*)calloc(scene.particles.size(), sizeof(double));
+    this->densities = (double*)calloc(scene.particles.size(), sizeof(double));
     this->delta_pos = (dvec3*)calloc(scene.particles.size(), sizeof(dvec3));
     this->delta_vel = (dvec3*)calloc(scene.particles.size(), sizeof(dvec3));
 }
@@ -28,6 +29,7 @@ SequentialSimulator::~SequentialSimulator() {
     free(neighbors);
     free(neighbor_counts);
     free(lambdas);
+    free(densities);
     free(delta_pos);
     free(delta_vel);
 }
@@ -100,7 +102,6 @@ double SequentialSimulator::compute_density(Scene& scene, int particle_id) {
 }
 
 double SequentialSimulator::compute_constraint(Scene& scene, int particle_id) {
-    const Particle& target = scene.particles[particle_id];
     return compute_density(scene, particle_id) / Constants::rest_density - 1.0;
 }
 
@@ -135,6 +136,7 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
     for (int iter = 0; iter < Constants::solver_iterations; iter++) {
         // Calculate lambda_i
         for (int i = 0; i < scene.particles.size(); ++i) {
+            lambdas[i] = 0;
             double constraint = compute_constraint(scene, i);
             double denom = 0.0;
             for (int j = 0; j < neighbor_counts[i]; j++) {
@@ -143,8 +145,8 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
                 denom += dot(grad_constraint, grad_constraint) / Constants::mass;
             }
             lambdas[i] = -constraint / (denom + Constants::eps);
+            // cout << constraint << " " << denom << endl;
         }
-        
         
         // Calculate delta_p and perform collision detection and response
         double corr_q = Kernels::poly6(Constants::corr_q * Constants::h * dvec3{1.0, 1.0, 1.0}, Constants::h);
@@ -155,8 +157,15 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
                 double corr_kernel = Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h); 
                 double corr = -Constants::corr_k * std::pow(corr_kernel / corr_q, Constants::corr_n);
                 // WE LEAVE OUT THE MASS COMPUTATION BECAUSE THE NEIGHBOR AND PARTICLE MASS CANCEL
-                delta_pos[i] += (lambdas[i] + lambdas[neighbor_id] + corr) * compute_grad_constraint(scene, i, neighbor_id) / Constants::rest_density;
+                dvec3 grad_W = Kernels::gradSpiky(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
+                dvec3 grad_W2 = compute_grad_constraint(scene, i, neighbor_id);
+                //std::cout << grad_W.x << " " << grad_W.y << " " << grad_W.z << "\n";
+                // delta_pos[i] += (lambdas[i] + lambdas[neighbor_id] + corr) * grad_W2 / Constants::rest_density;
+                // delta_pos[i] += (lambdas[i] + lambdas[neighbor_id] + corr) * grad_W / Constants::rest_density;
+                // delta_pos[i] += (lambdas[i] + lambdas[neighbor_id]) * grad_W / Constants::rest_density;
+                delta_pos[i] += Constants::mass * (lambdas[i] + lambdas[neighbor_id] + corr) * grad_W;
             }
+            delta_pos[i] *= (1.0 / Constants::mass) * (1.0 / Constants::rest_density);
         }
         
         // Separate for loops for parallelization later 
@@ -180,7 +189,7 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
 
     for (auto& p : scene.particles) {
         // should we damp the velocities? 
-        p.vel = (p.new_pos - p.pos) / elapsed;
+        p.vel = Constants::damping * (p.new_pos - p.pos) / elapsed;
         p.pos = p.new_pos;
     }
 
@@ -188,12 +197,16 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
 
     // XSPH viscosity
     for (int i = 0; i < scene.particles.size(); ++i) {
+        densities[i] = compute_density(scene, i);
+    }
+    for (int i = 0; i < scene.particles.size(); ++i) {
         delta_vel[i] = dvec3{0.0, 0.0, 0.0};
         for (int j = 0; j < neighbor_counts[i]; j++) {
             int neighbor_id = neighbors[i * Constants::max_neighbors + j];
             dvec3 vel = scene.particles[neighbor_id].vel - scene.particles[i].vel;
-            double density = compute_density(scene, neighbor_id); 
-            delta_vel[i] += (Constants::xsph_c / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
+            double density = densities[neighbor_id];
+            // delta_vel[i] += (Constants::xsph_c / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
+            delta_vel[i] += (Constants::mass / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
         }
     }
     for (int i = 0; i < scene.particles.size(); ++i) {

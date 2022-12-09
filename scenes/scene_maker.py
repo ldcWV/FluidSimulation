@@ -1,9 +1,9 @@
 import random
 
-num_particles = 3000
-bbox_mins = [-2, -2, -2]
-bbox_maxs = [2, 2, 2]
-pad = [0.5, 0.5, 0.5]
+num_particles = 100000
+bbox_mins = [-1, 0, -1]
+bbox_maxs = [1, 8, 1]
+pad = [0.2, 0.5, 0.2]
 particles = []
 
 for i in range(num_particles):
@@ -13,7 +13,7 @@ for i in range(num_particles):
         random.uniform(bbox_mins[2]+pad[2], bbox_maxs[2]-pad[2]),
     ))
 
-f = open("3000_random.txt", "w")
+f = open("100000_random_narrow.txt", "w")
 f.write(str(num_particles) + "\n")
 for i in range(3):
     f.write(str(bbox_mins[i]) + " ")
