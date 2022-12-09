@@ -45,8 +45,8 @@ int main(int argc, char* argv[]) {
     string scene_name = "100000_random_narrow";
     bool benchmark = false;
     int num_iterations = 1000000;
-    bool save_replay = true;
-    bool play_replay = false;
+    bool save_replay = false;
+    bool play_replay = true;
 
     if (save_replay && play_replay) {
         cout << "Cannot both save and play replay" << endl;
@@ -96,16 +96,13 @@ int main(int argc, char* argv[]) {
         replay_idx++;
 
         /* Render here */
-        // TODO: substeps with dt / # substeps
         if (play_replay) {
             if (scene.load(replay_file, true) == -1) {
                 replay_idx = 0;
                 continue;
             }
         } else {
-            for (int k = 0; k < 5; ++k) {
-                sim->update(Constants::dt / 5.f, scene);
-            }
+            sim->update(Constants::dt / 5.f, scene);
         }
 
         // Atomically update renderer_scene

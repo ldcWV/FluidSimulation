@@ -7,7 +7,7 @@ using namespace glm;
 
 namespace Sphere {
     vector<vec3> getVertices() {
-        const int divs = 10;
+        const int divs = 3;
         vector<vec3> res;
 
         auto addSquare = [&](float ii, float jj, float kk, int i_idx, int j_idx) {
