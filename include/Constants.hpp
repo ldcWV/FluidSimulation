@@ -9,7 +9,7 @@ namespace Constants {
     const double h = 0.1; // not the same thing as radius 
     const double radius = h/2;
     const size_t max_particles_per_cell = 100;
-    const size_t max_neighbors = 100;
+    const size_t max_neighbors = 500;
     const int solver_iterations = 2;
     const double pi = 3.14159265358979323846;
     // const double rest_density = 60;

@@ -42,11 +42,11 @@ int main(int argc, char* argv[]) {
     cout << "Starting main" << endl;
     // todo: parse these arguments
     bool parallel = false;
-    string scene_name = "100000_random_narrow";
+    string scene_name = "10000_random_yuki";
     bool benchmark = false;
     int num_iterations = 1000000;
     bool save_replay = false;
-    bool play_replay = true;
+    bool play_replay = false;
 
     if (save_replay && play_replay) {
         cout << "Cannot both save and play replay" << endl;
@@ -102,7 +102,7 @@ int main(int argc, char* argv[]) {
                 continue;
             }
         } else {
-            sim->update(Constants::dt / 5.f, scene);
+            sim->update(Constants::dt / 5, scene);
         }
 
         // Atomically update renderer_scene
@@ -118,6 +118,7 @@ int main(int argc, char* argv[]) {
         if (renderer_done) break;
     }
 
+    cout << "Terminating program" << endl;
     glfwTerminate();
     return 0;
 }

@@ -55,7 +55,8 @@ void SequentialSimulator::recompute_grid(Scene& scene) {
         ivec3 coords = get_cell_coords(p.new_pos);
         int idx = get_cell_idx(coords);
         if (grid_cell_counts[idx] == Constants::max_particles_per_cell) continue;
-        grid[idx * Constants::max_particles_per_cell + grid_cell_counts[idx]++] = p.id;
+        grid[idx * Constants::max_particles_per_cell + grid_cell_counts[idx]] = p.id;
+        grid_cell_counts[idx]++;
     }
 }
 
@@ -81,7 +82,8 @@ void SequentialSimulator::recompute_neighbors(Scene& scene) {
                     for (int i = 0; i < grid_cell_counts[idx]; i++) {
                         int other_id = grid[idx*Constants::max_particles_per_cell + i];
                         if (neighbor_counts[p.id] < Constants::max_neighbors) {
-                            neighbors[p.id*Constants::max_neighbors + neighbor_counts[p.id]++] = other_id;
+                            neighbors[p.id*Constants::max_neighbors + neighbor_counts[p.id]] = other_id;
+                            neighbor_counts[p.id]++;
                         }
                     }
                 }
@@ -110,13 +112,13 @@ dvec3 SequentialSimulator::compute_grad_constraint(Scene& scene, int constraint_
     const Particle& constraint_particle = scene.particles[constraint_id];
     const dvec3& constraint_pos = constraint_particle.new_pos;
     if (constraint_id == grad_id) {
-        dvec3 grad{0.0, 0.0, 0.0};
+        dvec3 res{0.0, 0.0, 0.0};
         for (int i = 0; i < neighbor_counts[constraint_id]; i++) {
             int neighbor_id = neighbors[constraint_id * Constants::max_neighbors + i];
             const dvec3& neighbor_pos = scene.particles[neighbor_id].new_pos;
-            grad += Constants::mass * Kernels::gradSpiky(constraint_pos - neighbor_pos, Constants::h) / Constants::rest_density;
+            res += Constants::mass * Kernels::gradSpiky(constraint_pos - neighbor_pos, Constants::h);
         }
-        return grad;
+        return res / Constants::rest_density;
     } else {
         return -Constants::mass * Kernels::gradSpiky(constraint_pos - scene.particles[grad_id].new_pos, Constants::h) / Constants::rest_density;
     }
@@ -136,16 +138,17 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
     for (int iter = 0; iter < Constants::solver_iterations; iter++) {
         // Calculate lambda_i
         for (int i = 0; i < scene.particles.size(); ++i) {
-            lambdas[i] = 0;
-            double constraint = compute_constraint(scene, i);
-            double denom = 0.0;
+            double numerator = compute_constraint(scene, i);
+
+            double denominator = 0.0;
             for (int j = 0; j < neighbor_counts[i]; j++) {
                 int neighbor_id = neighbors[i * Constants::max_neighbors + j];
-                auto grad_constraint = compute_grad_constraint(scene, i, neighbor_id);
-                denom += dot(grad_constraint, grad_constraint) / Constants::mass;
+                auto grad = compute_grad_constraint(scene, i, neighbor_id);
+                denominator += dot(grad, grad) / Constants::mass;
             }
-            lambdas[i] = -constraint / (denom + Constants::eps);
-            // cout << constraint << " " << denom << endl;
+            denominator += Constants::eps;
+
+            lambdas[i] = -numerator / denominator;
         }
         
         // Calculate delta_p and perform collision detection and response
