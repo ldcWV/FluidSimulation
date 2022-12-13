@@ -14,10 +14,13 @@ struct SequentialSimulator : Simulator {
 
 private:
     size_t grid_width, grid_height, grid_length;
+    int* grid_sizes;
+    int* grid_offsets;
     int* grid;
-    int* grid_cell_counts;
-    int* neighbors;
-    int* neighbor_counts;
+    int* neighbor_sizes;
+    int* neighbor_offsets;
+    static constexpr int MAX_NEIGHBORS = 5000000; // sum of # neighbors over every particle
+    int neighbors[MAX_NEIGHBORS];
     double* lambdas;
     double* densities;
     glm::dvec3* delta_pos;

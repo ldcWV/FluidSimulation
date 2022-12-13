@@ -9,6 +9,7 @@
 #include "Renderer.hpp"
 #include <direct.h>
 #include <thread>
+#include <chrono>
 #include <mutex>
 
 using namespace std;
@@ -46,7 +47,7 @@ int main(int argc, char* argv[]) {
     bool benchmark = false;
     int num_iterations = 1000000;
     bool save_replay = false;
-    bool play_replay = false;
+    bool play_replay = true;
 
     if (save_replay && play_replay) {
         cout << "Cannot both save and play replay" << endl;
@@ -62,22 +63,6 @@ int main(int argc, char* argv[]) {
     unique_ptr<Simulator> sim;
     if (parallel) sim.reset(new ParallelSimulator(scene));
     else sim.reset(new SequentialSimulator(scene));
-
-    // constexpr int num_relax_steps = 20;
-    // for (int k = 0; k < num_relax_steps; ++k) {
-    //     const float damping = std::min(1.f, (2.f * k / num_relax_steps));
-
-    //     // Step the simulation time forward using a very small time step
-    //     sim->update(1e-04 * Constants::dt, scene);
-
-    //     // Damp velocities for stability
-    //     for (auto& p : scene.particles) {
-    //         p.vel = double(damping) * p.vel;
-    //     }
-    // }
-    // for (auto& p : scene.particles) {
-    //     p.vel = glm::dvec3(0);
-    // }
 
     string replay_folder = string(REPLAY_DIR) + scene_name;
     if (save_replay) {
@@ -104,6 +89,7 @@ int main(int argc, char* argv[]) {
         } else {
             sim->update(Constants::dt / 5, scene);
         }
+        this_thread::sleep_for(std::chrono::milliseconds(15));
 
         // Atomically update renderer_scene
         renderer_scene_updated = true;
