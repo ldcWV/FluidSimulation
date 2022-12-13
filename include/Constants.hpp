@@ -19,4 +19,5 @@ namespace Constants {
     const int corr_n = 4;
     const float xsph_c = 0.05f;
     const double damping = 0.999;
+    const int threads_per_block = 1024;
 };

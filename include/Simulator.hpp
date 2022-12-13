@@ -43,12 +43,38 @@ struct ParallelSimulator : Simulator {
     void update(double elapsed, Scene& scene) override;
 
 private: 
-    size_t grid_width, grid_height, grid_length;
-    double* lambdas; 
-    Particle* particles;
-    glm::dvec3* delta_pos, delta_vel;
-    glm::dvec3 bbox_mins, bbox_maxs;
+    // MAKE SURE THIS STUFF ISN'T OVERLOADED??? 
 
-    glm::ivec3 get_cell_coords(glm::dvec3 pos);
-    int get_cell_idx(glm::ivec3 coords); 
+    // HOST memory 
+    int _n, _blocks;
+    size_t _total_cells; 
+
+    // DEVICE memory 
+    size_t blocks, threads, n, total_cells; 
+    glm::dvec3 bbox_mins, bbox_maxs;
+    size_t grid_width, grid_height, grid_length;
+    double* lambdas, *densities; 
+    Particle* particles, sorted_particles;
+    int *bins, *prefix_bins, *neighbor_starts; 
+    glm::dvec3* delta_pos, *delta_vel;
+
+    // HOST functions 
+    void reset(); 
+    void recompute_neighbors();
+    void simulate(); 
+
+    // HOST kernel wrappers
+    void compute_bins();
+    void compute_prefix_bins();
+    void compute_sorted_particles();
+    void compute_neighbor_starts();
+    void compute_lambdas();
+    void compute_delta_positions();
+    void compute_densities(); 
+    void compute_velocities();
+    void compute_velocities_and_positions();
+    void xsph_viscosity();
+    void update_velocities();
+    void update_positions();
+    void update_collisions();
 };
