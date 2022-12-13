@@ -17,6 +17,6 @@ namespace Constants {
     const double corr_q = 0.3; 
     const double corr_k = mass * 0.0001;
     const int corr_n = 4;
-    const float xsph_c = 0.001f;
+    const float xsph_c = 0.05f;
     const double damping = 0.999;
 };

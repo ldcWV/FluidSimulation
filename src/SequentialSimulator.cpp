@@ -13,10 +13,13 @@ SequentialSimulator::SequentialSimulator(const Scene& scene) {
     this->grid_height = (bbox_maxs.y - bbox_mins.y) / Constants::h + 1;
     this->grid_length = (bbox_maxs.z - bbox_mins.z) / Constants::h + 1;
 
-    this->grid = (int*)calloc(grid_width * grid_height * grid_length * Constants::max_particles_per_cell, sizeof(int));
-    this->grid_cell_counts = (int*)calloc(grid_width * grid_height * grid_length, sizeof(int));
-    this->neighbors = (int*)calloc(scene.particles.size()*Constants::max_neighbors, sizeof(int));
-    this->neighbor_counts = (int*)calloc(scene.particles.size(), sizeof(int));
+    this->grid_sizes = (int*)calloc(grid_width * grid_height * grid_length, sizeof(int));
+    this->grid_offsets = (int*)calloc(grid_width * grid_height * grid_length, sizeof(int));
+    this->grid = (int*)calloc(scene.particles.size(), sizeof(int));
+
+    this->neighbor_sizes = (int*)calloc(scene.particles.size(), sizeof(int));
+    this->neighbor_offsets = (int*)calloc(scene.particles.size(), sizeof(int));
+
     this->lambdas = (double*)calloc(scene.particles.size(), sizeof(double));
     this->densities = (double*)calloc(scene.particles.size(), sizeof(double));
     this->delta_pos = (dvec3*)calloc(scene.particles.size(), sizeof(dvec3));
@@ -24,14 +27,15 @@ SequentialSimulator::SequentialSimulator(const Scene& scene) {
 }
 
 SequentialSimulator::~SequentialSimulator() {
-    free(grid);
-    free(grid_cell_counts);
-    free(neighbors);
-    free(neighbor_counts);
     free(lambdas);
     free(densities);
     free(delta_pos);
     free(delta_vel);
+    free(grid_sizes);
+    free(grid_offsets);
+    free(grid);
+    free(neighbor_sizes);
+    free(neighbor_offsets);
 }
 
 ivec3 SequentialSimulator::get_cell_coords(dvec3 pos) {
@@ -48,24 +52,40 @@ int SequentialSimulator::get_cell_idx(ivec3 coords) {
 }
 
 void SequentialSimulator::recompute_grid(Scene& scene) {
+    // Compute sizes and offsets of each grid cell
     for (size_t i = 0; i < grid_width*grid_height*grid_length; i++) {
-        grid_cell_counts[i] = 0;
+        grid_sizes[i] = 0;
     }
     for (auto& p : scene.particles) {
         ivec3 coords = get_cell_coords(p.new_pos);
         int idx = get_cell_idx(coords);
-        if (grid_cell_counts[idx] == Constants::max_particles_per_cell) continue;
-        grid[idx * Constants::max_particles_per_cell + grid_cell_counts[idx]] = p.id;
-        grid_cell_counts[idx]++;
+        grid_sizes[idx]++;
+    }
+    grid_offsets[0] = 0;
+    for (size_t i = 1; i < grid_width*grid_height*grid_length; i++) {
+        grid_offsets[i] = grid_sizes[i-1] + grid_offsets[i-1];
+    }
+
+    // Fill in the grid cells using the computed offsets
+    for (size_t i = 0; i < grid_width*grid_height*grid_length; i++) {
+        grid_sizes[i] = 0;
+    }
+    for (auto& p : scene.particles) {
+        ivec3 coords = get_cell_coords(p.new_pos);
+        int idx = get_cell_idx(coords);
+        grid[grid_offsets[idx] + grid_sizes[idx]] = p.id;
+        grid_sizes[idx]++;
     }
 }
 
 void SequentialSimulator::recompute_neighbors(Scene& scene) {
+    // Compute sizes and contents of each neighbor list
     for (size_t i = 0; i < scene.particles.size(); i++) {
-        neighbor_counts[i] = 0;
+        neighbor_sizes[i] = 0;
     }
-
-    for (auto& p : scene.particles) {
+    int n_idx = 0;
+    for (size_t i = 0; i < scene.particles.size(); i++) {
+        Particle& p = scene.particles[i];
         ivec3 our_coords = get_cell_coords(p.new_pos);
 
         // Need to check the 27 surrounding cells
@@ -79,24 +99,33 @@ void SequentialSimulator::recompute_neighbors(Scene& scene) {
                     
                     // Iterate through all particles here (including ourselves!) and add it to neighbors
                     int idx = get_cell_idx(coords);
-                    for (int i = 0; i < grid_cell_counts[idx]; i++) {
-                        int other_id = grid[idx*Constants::max_particles_per_cell + i];
-                        if (neighbor_counts[p.id] < Constants::max_neighbors) {
-                            neighbors[p.id*Constants::max_neighbors + neighbor_counts[p.id]] = other_id;
-                            neighbor_counts[p.id]++;
+                    for (int j = grid_offsets[idx]; j < grid_offsets[idx] + grid_sizes[idx]; j++) {
+                        int other_id = grid[j];
+                        if (n_idx == MAX_NEIGHBORS) {
+                            cout << "Warning: ran out of space for neighbors (Constants::MAX_NEIGHBORS should be increased)." << endl;
+                            continue;
                         }
+                        neighbors[n_idx] = other_id;
+                        n_idx++;
+                        neighbor_sizes[i]++;
                     }
                 }
             }
         }
+    }
+
+    // Compute offsets of each neighbor list
+    neighbor_offsets[0] = 0;
+    for (size_t i = 1; i < scene.particles.size(); i++) {
+        neighbor_offsets[i] = neighbor_sizes[i-1] + neighbor_offsets[i-1];
     }
 }
 
 double SequentialSimulator::compute_density(Scene& scene, int particle_id) {
     const Particle& target = scene.particles[particle_id];
     double density = 0.0;
-    for (int i = 0; i < neighbor_counts[particle_id]; i++) {
-        int neighbor_id = neighbors[particle_id * Constants::max_neighbors + i];
+    for (int i = neighbor_offsets[particle_id]; i < neighbor_offsets[particle_id] + neighbor_sizes[particle_id]; i++) {
+        int neighbor_id = neighbors[i];
         const Particle& p = scene.particles[neighbor_id];
         density += Constants::mass * Kernels::poly6(target.new_pos - p.new_pos, Constants::h);
     }
@@ -113,8 +142,8 @@ dvec3 SequentialSimulator::compute_grad_constraint(Scene& scene, int constraint_
     const dvec3& constraint_pos = constraint_particle.new_pos;
     if (constraint_id == grad_id) {
         dvec3 res{0.0, 0.0, 0.0};
-        for (int i = 0; i < neighbor_counts[constraint_id]; i++) {
-            int neighbor_id = neighbors[constraint_id * Constants::max_neighbors + i];
+        for (int i = neighbor_offsets[constraint_id]; i < neighbor_offsets[constraint_id] + neighbor_sizes[constraint_id]; i++) {
+            int neighbor_id = neighbors[i];
             const dvec3& neighbor_pos = scene.particles[neighbor_id].new_pos;
             res += Constants::mass * Kernels::gradSpiky(constraint_pos - neighbor_pos, Constants::h);
         }
@@ -141,8 +170,8 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
             double numerator = compute_constraint(scene, i);
 
             double denominator = 0.0;
-            for (int j = 0; j < neighbor_counts[i]; j++) {
-                int neighbor_id = neighbors[i * Constants::max_neighbors + j];
+            for (int j = neighbor_offsets[i]; j < neighbor_offsets[i] + neighbor_sizes[i]; j++) {
+                int neighbor_id = neighbors[j];
                 auto grad = compute_grad_constraint(scene, i, neighbor_id);
                 denominator += dot(grad, grad) / Constants::mass;
             }
@@ -152,20 +181,14 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
         }
         
         // Calculate delta_p and perform collision detection and response
-        double corr_q = Kernels::poly6(Constants::corr_q * Constants::h * dvec3{1.0, 1.0, 1.0}, Constants::h);
+        double corr_q = Kernels::poly6(Constants::corr_q * Constants::h * dvec3{1.0, 0.0, 0.0}, Constants::h);
         for (int i = 0; i < scene.particles.size(); ++i) {
             delta_pos[i] = dvec3{0.0, 0.0, 0.0};
-            for (int j = 0; j < neighbor_counts[i]; j++) {
-                int neighbor_id = neighbors[i * Constants::max_neighbors + j];
+            for (int j = neighbor_offsets[i]; j < neighbor_offsets[i] + neighbor_sizes[i]; j++) {
+                int neighbor_id = neighbors[j];
                 double corr_kernel = Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h); 
                 double corr = -Constants::corr_k * std::pow(corr_kernel / corr_q, Constants::corr_n);
-                // WE LEAVE OUT THE MASS COMPUTATION BECAUSE THE NEIGHBOR AND PARTICLE MASS CANCEL
                 dvec3 grad_W = Kernels::gradSpiky(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
-                dvec3 grad_W2 = compute_grad_constraint(scene, i, neighbor_id);
-                //std::cout << grad_W.x << " " << grad_W.y << " " << grad_W.z << "\n";
-                // delta_pos[i] += (lambdas[i] + lambdas[neighbor_id] + corr) * grad_W2 / Constants::rest_density;
-                // delta_pos[i] += (lambdas[i] + lambdas[neighbor_id] + corr) * grad_W / Constants::rest_density;
-                // delta_pos[i] += (lambdas[i] + lambdas[neighbor_id]) * grad_W / Constants::rest_density;
                 delta_pos[i] += Constants::mass * (lambdas[i] + lambdas[neighbor_id] + corr) * grad_W;
             }
             delta_pos[i] *= (1.0 / Constants::mass) * (1.0 / Constants::rest_density);
@@ -204,13 +227,14 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
     }
     for (int i = 0; i < scene.particles.size(); ++i) {
         delta_vel[i] = dvec3{0.0, 0.0, 0.0};
-        for (int j = 0; j < neighbor_counts[i]; j++) {
-            int neighbor_id = neighbors[i * Constants::max_neighbors + j];
+        for (int j = neighbor_offsets[i]; j < neighbor_offsets[i] + neighbor_sizes[i]; j++) {
+            int neighbor_id = neighbors[j];
             dvec3 vel = scene.particles[neighbor_id].vel - scene.particles[i].vel;
             double density = densities[neighbor_id];
             // delta_vel[i] += (Constants::xsph_c / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
             delta_vel[i] += (Constants::mass / density) * vel * Kernels::poly6(scene.particles[i].new_pos - scene.particles[neighbor_id].new_pos, Constants::h);
         }
+        delta_vel[i] *= Constants::xsph_c;
     }
     for (int i = 0; i < scene.particles.size(); ++i) {
         scene.particles[i].vel += delta_vel[i];
