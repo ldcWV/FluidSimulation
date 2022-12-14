@@ -46,33 +46,34 @@ private:
     // MAKE SURE THIS STUFF ISN'T OVERLOADED??? 
 
     // HOST memory 
-    int _n, _blocks;
+    int _n;
+    size_t _blocks, _threads;
     size_t _total_cells; 
 
     // DEVICE memory 
-    size_t blocks, threads, n, total_cells; 
+    size_t n, total_cells; 
     glm::dvec3 bbox_mins, bbox_maxs;
     size_t grid_width, grid_height, grid_length;
-    double* lambdas, *densities; 
-    Particle* particles, sorted_particles;
-    int *bins, *prefix_bins, *neighbor_starts; 
+    double* lambdas;
+    double* densities; 
+    Particle* particles;
+    int* grid;
+    int* neighbors;
+    int *bins, *prefix_bins, *neighbor_starts, *neighbor_sizes, *grid_starts;
     glm::dvec3* delta_pos, *delta_vel;
 
     // HOST functions 
     void reset(); 
     void recompute_neighbors();
+    void recompute_grid();
     void simulate(); 
 
     // HOST kernel wrappers
-    void compute_bins();
-    void compute_prefix_bins();
-    void compute_sorted_particles();
-    void compute_neighbor_starts();
     void compute_lambdas();
     void compute_delta_positions();
     void compute_densities(); 
-    void compute_velocities();
-    void compute_velocities_and_positions();
+    void compute_velocities(double elapsed);
+    void compute_velocities_and_positions(double elapsed);
     void xsph_viscosity();
     void update_velocities();
     void update_positions();

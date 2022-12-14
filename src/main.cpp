@@ -42,12 +42,12 @@ void render() {
 int main(int argc, char* argv[]) {
     cout << "Starting main" << endl;
     // todo: parse these arguments
-    bool parallel = false;
+    bool parallel = true;
     string scene_name = "10000_random_yuki";
     bool benchmark = false;
-    int num_iterations = 1000000;
+    int num_iterations = 100000;
     bool save_replay = false;
-    bool play_replay = true;
+    bool play_replay = false;
 
     if (save_replay && play_replay) {
         cout << "Cannot both save and play replay" << endl;
@@ -87,7 +87,10 @@ int main(int argc, char* argv[]) {
                 continue;
             }
         } else {
-            sim->update(Constants::dt / 5, scene);
+            float start = glfwGetTime();
+            sim->update(Constants::dt, scene);
+            float end = glfwGetTime();
+            cout << "Update took " << (end - start)*1000 << " ms" << endl;
         }
         this_thread::sleep_for(std::chrono::milliseconds(15));
 
