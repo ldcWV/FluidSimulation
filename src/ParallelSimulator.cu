@@ -82,7 +82,7 @@ __host__ ParallelSimulator::ParallelSimulator(const Scene& scene) {
     cudaMalloc((void**)&bins, sizeof(int) * _total_cells);
     cudaMalloc((void**)&prefix_bins, sizeof(int) * _total_cells);
     cudaMalloc((void**)&grid_starts, sizeof(int) * _total_cells);
-    cudaMalloc((void**)&grid, sizeof(int) * _total_cells);
+    cudaMalloc((void**)&grid, sizeof(int) * _n);
 
     cudaMalloc((void**)&delta_pos, sizeof(dvec3) * _n);
     cudaMalloc((void**)&delta_vel, sizeof(dvec3) * _n);
@@ -174,7 +174,6 @@ __global__ void compute_bins_kernel(Particle *particles, int *bins, int n) {
     Particle &p = particles[idx];
     ivec3 coords = get_cell_coords(p.new_pos);
     int cell_idx = get_cell_idx(coords);
-    printf("%d\n", cell_idx);
     atomicAdd(&bins[cell_idx], 1);
 }
 
@@ -208,9 +207,9 @@ __host__ void ParallelSimulator::recompute_grid() {
     thrust::exclusive_scan(thrust::device, bins, bins + _total_cells, prefix_bins);
     cudaCheckError(cudaDeviceSynchronize());
     compute_sorted_grid_kernel<<<_blocks, _threads>>>(particles, prefix_bins, grid, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
     compute_grid_starts_kernel<<<_blocks, _threads>>>(particles, grid_starts, prefix_bins, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void compute_neighbor_sizes_kernel(Particle *particles, int *neighbor_sizes, int *bins, int _n) {
@@ -235,9 +234,9 @@ __global__ void compute_neighbor_sizes_kernel(Particle *particles, int *neighbor
 }
 
 
-__global__ void compute_neighbors_kernel(Particle *particles, int *neighbors, int *neighbor_sizes, int *neighbor_starts, int *grid, int *grid_starts, int *bins, int _n) {
+__global__ void compute_neighbors_kernel(Particle *particles, int *neighbors, int *neighbor_sizes, int *neighbor_starts, int *grid, int *grid_starts, int *bins, int n) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= _n) return;
+    if (idx >= n) return;
     Particle &p = particles[idx];
     ivec3 our_coords = get_cell_coords(p.new_pos);
     int current_neighbor = 0;
@@ -261,11 +260,11 @@ __global__ void compute_neighbors_kernel(Particle *particles, int *neighbors, in
 
 __host__ void ParallelSimulator::recompute_neighbors() {
     compute_neighbor_sizes_kernel<<<_blocks, _threads>>>(particles, neighbor_sizes, bins, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
     thrust::exclusive_scan(thrust::device, neighbor_sizes, neighbor_sizes + _n, neighbor_starts);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
     compute_neighbors_kernel<<<_blocks, _threads>>>(particles, neighbors, neighbor_sizes, neighbor_starts, grid, grid_starts, bins, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
 }
 
 __device__ double compute_constraint(double *densities, int particle_id) {
@@ -312,7 +311,7 @@ __global__ void compute_lambdas_kernel(Particle *particles, int *neighbors, doub
 
 __host__ void ParallelSimulator::compute_lambdas() {
     compute_lambdas_kernel<<<_blocks, _threads>>>(particles, neighbors, densities, lambdas, neighbor_starts, neighbor_sizes, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void compute_delta_positions_kernel(Particle *particles, int *neighbors, dvec3 *delta_pos, double *lambdas, int *neighbor_starts, int *neighbor_sizes, int n) {
@@ -341,7 +340,7 @@ __global__ void compute_delta_positions_kernel(Particle *particles, int *neighbo
 
 __host__ void ParallelSimulator::compute_delta_positions() {
     compute_delta_positions_kernel<<<_blocks, _threads>>>(particles, neighbors, delta_pos, lambdas, neighbor_starts, neighbor_sizes, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
 }
 
 
@@ -354,7 +353,7 @@ __global__ void update_positions_kernel(Particle *particles, dvec3 *delta_pos, i
 
 __host__ void ParallelSimulator::update_positions() {
     update_positions_kernel<<<_blocks, _threads>>>(particles, delta_pos, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void update_collisions_kernel(Particle *particles, int n) {
@@ -372,7 +371,7 @@ __global__ void update_collisions_kernel(Particle *particles, int n) {
 
 __host__ void ParallelSimulator::update_collisions() {
     update_collisions_kernel<<<_blocks, _threads>>>(particles, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
 }
 
 __host__ void ParallelSimulator::simulate() {
@@ -393,7 +392,7 @@ __global__ void compute_velocities_kernel(Particle *particles, double elapsed, i
 
 __host__ void ParallelSimulator::compute_velocities(double elapsed) {
     compute_velocities_kernel<<<_blocks, _threads>>>(particles, elapsed, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void compute_velocities_and_positions_kernel(Particle *particles, double elapsed, int n) {
@@ -406,7 +405,7 @@ __global__ void compute_velocities_and_positions_kernel(Particle *particles, dou
 
 __host__ void ParallelSimulator::compute_velocities_and_positions(double elapsed) {
     compute_velocities_and_positions_kernel<<<_blocks, _threads>>>(particles, elapsed, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void compute_densities_kernel(Particle *particles, int *neighbors, double *densities, int *neighbor_starts, int *neighbor_sizes, int n) {
@@ -421,12 +420,12 @@ __global__ void compute_densities_kernel(Particle *particles, int *neighbors, do
         Particle &neighbor = particles[neighbor_id];
         density += GC.mass * poly6(p.new_pos - neighbor.new_pos, GC.h);
     }
-    densities[idx] = density / GC.rest_density - 1.0;
+    densities[idx] = density;
 }
 
 __host__ void ParallelSimulator::compute_densities() {
     compute_densities_kernel<<<_blocks, _threads>>>(particles, neighbors, densities, neighbor_starts, neighbor_sizes, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void xsph_viscosity_kernel(Particle *particles, int *neighbors, dvec3 *delta_vel, double *densities, int *neighbor_starts, int *neighbor_sizes, int n) {
@@ -447,7 +446,7 @@ __global__ void xsph_viscosity_kernel(Particle *particles, int *neighbors, dvec3
 
 __host__ void ParallelSimulator::xsph_viscosity() {
     xsph_viscosity_kernel<<<_blocks, _threads>>>(particles, neighbors, delta_vel, densities, neighbor_starts, neighbor_sizes, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void update_velocities_kernel(Particle *particles, dvec3 *delta_vel, int n) {
@@ -459,7 +458,7 @@ __global__ void update_velocities_kernel(Particle *particles, dvec3 *delta_vel, 
 
 __host__ void ParallelSimulator::update_velocities() {
     update_velocities_kernel<<<_blocks, _threads>>>(particles, delta_vel, _n);
-    cudaDeviceSynchronize();
+    cudaCheckError(cudaDeviceSynchronize());
 }
 
 __host__ void ParallelSimulator::update(double elapsed, Scene& scene) {
@@ -501,7 +500,7 @@ __host__ void ParallelSimulator::update(double elapsed, Scene& scene) {
     cudaMemcpy(scene.particles.data(), particles, sizeof(Particle) * _n, cudaMemcpyDeviceToHost);
     double t10 = glfwGetTime();
 
-    // std::cout << "0 - 4: " << t0 << " " << t1 << " " << t2 << " " << t3 << " " << t4 << std::endl;
-    // std::cout << "5 - 10: " << t5 << " " << t6 << " " << t7 << " " << t8 << " " << t9 << " " << t10 << std::endl;
+    std::cout << "0 - 4: " << t1-t0 << " " << t2-t1 << " " << t3-t2 << " " << t4-t3 << " " << t5-t4 << std::endl;
+    std::cout << "5 - 10: " << t6-t5 << " " << t7-t6 << " " << t8-t7 << " " << t9-t8 << " " << t10-t9 << std::endl;
     return;
 }
