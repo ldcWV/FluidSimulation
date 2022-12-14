@@ -86,13 +86,13 @@ int main(int argc, char* argv[]) {
                 replay_idx = 0;
                 continue;
             }
+            this_thread::sleep_for(std::chrono::milliseconds(15));
         } else {
-            float start = glfwGetTime();
+            auto st = chrono::high_resolution_clock::now().time_since_epoch();
             sim->update(Constants::dt, scene);
-            float end = glfwGetTime();
-            cout << "Update took " << (end - start)*1000 << " ms" << endl;
+            auto en = chrono::high_resolution_clock::now().time_since_epoch();
+            cout << "Update took " << chrono::duration_cast<chrono::milliseconds>(en - st).count() << " ms" << endl;
         }
-        this_thread::sleep_for(std::chrono::milliseconds(15));
 
         // Atomically update renderer_scene
         renderer_scene_updated = true;
