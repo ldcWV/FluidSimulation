@@ -7,7 +7,7 @@ namespace Constants {
     const double eps = 1e5;
     const double mass = 1.0 / 30.0;
     const double h = 0.1; // not the same thing as radius 
-    const double radius = h/2;
+    const double radius = 0.01;
     const int solver_iterations = 2;
     const double pi = 3.14159265358979323846;
     const double rest_density = 1000;
