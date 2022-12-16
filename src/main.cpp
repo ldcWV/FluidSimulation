@@ -7,10 +7,11 @@
 #include "Renderer.hpp"
 #include <memory>
 #include "Renderer.hpp"
-#include <direct.h>
 #include <thread>
 #include <chrono>
 #include <mutex>
+#include <atomic>
+#include "ReplayManagers.hpp"
 
 using namespace std;
 
@@ -46,8 +47,8 @@ int main(int argc, char* argv[]) {
     string scene_name = "108000_random_yuki";
     bool benchmark = false;
     int num_iterations = 100000;
-    bool save_replay = true;
-    bool play_replay = false;
+    bool save_replay = false;
+    bool play_replay = true;
 
     if (save_replay && play_replay) {
         cout << "Cannot both save and play replay" << endl;
@@ -56,7 +57,7 @@ int main(int argc, char* argv[]) {
 
     string scene_file = string(SCENE_DIR) + scene_name + ".txt";
     cout << "Loading scene from " << scene_file << endl;
-    Scene scene(scene_file, false);
+    Scene scene(scene_file);
     cout << scene.particles.size() << " particles loaded" << endl;
 
     cout << "Initiating sim" << endl;
@@ -64,28 +65,24 @@ int main(int argc, char* argv[]) {
     if (parallel) sim.reset(new ParallelSimulator(scene));
     else sim.reset(new SequentialSimulator(scene));
 
-    string replay_folder = string(REPLAY_DIR) + scene_name;
-    if (save_replay) {
-        cout << "Creating replay folder at " << replay_folder << endl;
-        #ifdef _WIN32
-        _mkdir(replay_folder.c_str());
-        #endif
-    }
-    int replay_idx = 0;
-
+    cout << "Initiating replay managers" << endl;
+    string replay_file = string(REPLAY_DIR) + scene_name + ".replay";
+    unique_ptr<ReplayWriter> rw;
+    if (save_replay) rw.reset(new ReplayWriter(replay_file));
+    unique_ptr<ReplayReader> rr;
+    if (play_replay) rr.reset(new ReplayReader(replay_file));
+    
     cout << "Starting renderer" << endl;
     renderer_scene = scene;
     thread render_thread(render);
 
     cout << "Starting main loop" << endl;
     for (int i = 0; i < num_iterations; i++) {
-        string replay_file = string(replay_folder) + "/" + string(8 - std::min(8U, to_string(replay_idx).length()), '0') + to_string(replay_idx) + ".bin";
-        replay_idx++;
-
         /* Render here */
         if (play_replay) {
-            if (scene.load(replay_file, true) == -1) {
-                replay_idx = 0;
+            int err = rr->read_scene(&scene);
+            if (err) {
+                rr->reset();
                 continue;
             }
             this_thread::sleep_for(std::chrono::milliseconds(15));
@@ -103,7 +100,7 @@ int main(int argc, char* argv[]) {
         renderer_scene_updated = true;
 
         if (save_replay) {
-            scene.save(replay_file);
+            rw->write_scene(scene);
         }
 
         if (renderer_done) break;

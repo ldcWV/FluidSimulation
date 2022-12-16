@@ -12,7 +12,5 @@ struct Scene {
 
     Scene();
     Scene(const Scene& other); // copy constructor
-    Scene(string fname, bool binary);
-    int load(string fname, bool binary);
-    void save(string fname);
+    Scene(string fname);
 };

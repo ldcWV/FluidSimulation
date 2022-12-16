@@ -18,6 +18,7 @@ set(SOURCES
     src/ParallelSimulator.cu
     src/Shader.cpp
     src/Camera.cpp
+    src/ReplayManagers.cpp
 )
 
 find_package( OpenGL REQUIRED )
