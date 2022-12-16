@@ -1,6 +1,7 @@
 #pragma once
 #include "Scene.hpp"
 #include "Particle.hpp"
+#include "Constants.hpp"
 
 struct Simulator {
     virtual void update(double elapsed, Scene& scene) = 0;
@@ -19,8 +20,7 @@ private:
     int* grid;
     int* neighbor_sizes;
     int* neighbor_offsets;
-    static constexpr int MAX_NEIGHBORS = 100000000; // sum of # neighbors over every particle
-    int neighbors[MAX_NEIGHBORS];
+    int neighbors[Constants::MAX_NEIGHBORS];
     double* lambdas;
     double* densities;
     glm::dvec3* delta_pos;

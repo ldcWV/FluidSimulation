@@ -43,6 +43,7 @@ struct GlobalConstants {
     float xsph_c;
     double damping;
     int threads_per_block;
+    int MAX_NEIGHBORS;
 };
 
 __constant__ GlobalConstants GC; 
@@ -72,7 +73,7 @@ __host__ ParallelSimulator::ParallelSimulator(const Scene& scene) {
     cudaMalloc((void**)&lambdas, sizeof(double) * _n);
     cudaMalloc((void**)&densities, sizeof(double) * _n);
     cudaMalloc((void**)&particles, sizeof(Particle) * _n);
-    cudaMalloc((void**)&neighbors, sizeof(int) * 100000000);
+    cudaMalloc((void**)&neighbors, sizeof(int) * Constants::MAX_NEIGHBORS);
     cudaMalloc((void**)&neighbor_starts, sizeof(int) * _n);
     cudaMalloc((void**)&neighbor_sizes, sizeof(int) * _n);
 
@@ -107,6 +108,7 @@ __host__ ParallelSimulator::ParallelSimulator(const Scene& scene) {
     _GC.xsph_c = Constants::xsph_c;
     _GC.damping = Constants::damping;
     _GC.threads_per_block = Constants::threads_per_block;
+    _GC.MAX_NEIGHBORS = Constants::MAX_NEIGHBORS;
 
     cudaMemcpyToSymbol(GC, &_GC, sizeof(GlobalConstants));
 }
@@ -261,8 +263,14 @@ __global__ void compute_neighbors_kernel(Particle *particles, int *neighbors, in
                 int cell_idx = get_cell_idx(coords);
                 for (int j = grid_starts[cell_idx]; j < grid_starts[cell_idx] + bins[cell_idx]; ++j) {
                     if (grid[j] != idx) {
-                        neighbors[neighbor_starts[idx] + current_neighbor] = grid[j];
-                        current_neighbor++;
+                        int nidx = neighbor_starts[idx] + current_neighbor;
+                        if (nidx < GC.MAX_NEIGHBORS) {
+                            neighbors[nidx] = grid[j];
+                            current_neighbor++;
+                        } else {
+                            printf("WARNING: MAX_NEIGHBORS exceeded\n");
+                            return;
+                        }
                     }
                 }
             }
@@ -392,29 +400,11 @@ __host__ void ParallelSimulator::update_collisions() {
 }
 
 __host__ void ParallelSimulator::simulate() {
-    double t0 = glfwGetTime();
-
     compute_densities(); // to use in lambdas and delta positions
-    cudaCheckError(cudaDeviceSynchronize());
-    double t1 = glfwGetTime();
-
     compute_lambdas();
-    cudaCheckError(cudaDeviceSynchronize());
-    double t2 = glfwGetTime();
-
     compute_delta_positions();
-    cudaCheckError(cudaDeviceSynchronize());
-    double t3 = glfwGetTime();
-
     update_positions();
-    cudaCheckError(cudaDeviceSynchronize());
-    double t4 = glfwGetTime();
-
     update_collisions();
-    cudaCheckError(cudaDeviceSynchronize());
-    double t5 = glfwGetTime();
-
-    std::cout << t1 - t0 << " " << t2-t1 << " " << t3-t2 << " " << t4-t3 << " " << t5-t4 << std::endl;
 }
 
 __global__ void compute_velocities_kernel(Particle *particles, double elapsed, int n) {
@@ -427,7 +417,6 @@ __global__ void compute_velocities_kernel(Particle *particles, double elapsed, i
 
 __host__ void ParallelSimulator::compute_velocities(double elapsed) {
     compute_velocities_kernel<<<_blocks, _threads>>>(particles, elapsed, _n);
-    // cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void compute_velocities_and_positions_kernel(Particle *particles, double elapsed, int n) {
@@ -440,7 +429,6 @@ __global__ void compute_velocities_and_positions_kernel(Particle *particles, dou
 
 __host__ void ParallelSimulator::compute_velocities_and_positions(double elapsed) {
     compute_velocities_and_positions_kernel<<<_blocks, _threads>>>(particles, elapsed, _n);
-    // cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void compute_densities_kernel(Particle *particles, int *neighbors, double *densities, int *neighbor_starts, int *neighbor_sizes, int n) {
@@ -460,7 +448,6 @@ __global__ void compute_densities_kernel(Particle *particles, int *neighbors, do
 
 __host__ void ParallelSimulator::compute_densities() {
     compute_densities_kernel<<<_blocks, _threads>>>(particles, neighbors, densities, neighbor_starts, neighbor_sizes, _n);
-    // cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void xsph_viscosity_kernel(Particle *particles, int *neighbors, dvec3 *delta_vel, double *densities, int *neighbor_starts, int *neighbor_sizes, int n) {
@@ -481,7 +468,6 @@ __global__ void xsph_viscosity_kernel(Particle *particles, int *neighbors, dvec3
 
 __host__ void ParallelSimulator::xsph_viscosity() {
     xsph_viscosity_kernel<<<_blocks, _threads>>>(particles, neighbors, delta_vel, densities, neighbor_starts, neighbor_sizes, _n);
-    // cudaCheckError(cudaDeviceSynchronize());
 }
 
 __global__ void update_velocities_kernel(Particle *particles, dvec3 *delta_vel, int n) {
@@ -493,59 +479,34 @@ __global__ void update_velocities_kernel(Particle *particles, dvec3 *delta_vel, 
 
 __host__ void ParallelSimulator::update_velocities() {
     update_velocities_kernel<<<_blocks, _threads>>>(particles, delta_vel, _n);
-    // cudaCheckError(cudaDeviceSynchronize());
 }
 
 __host__ void ParallelSimulator::update(double elapsed, Scene& scene) {
-    double t0 = glfwGetTime();
     reset();
-    cudaCheckError(cudaDeviceSynchronize());
 
     // Copy scene particles from host to device memory 
-    double t1 = glfwGetTime();
     cudaMemcpy(particles, scene.particles.data(), sizeof(Particle) * _n, cudaMemcpyHostToDevice);
-    cudaCheckError(cudaDeviceSynchronize());
 
     // Initial forces 
-    double t2 = glfwGetTime();
     compute_velocities(elapsed);
-    cudaCheckError(cudaDeviceSynchronize());
 
     // Recompute neighbors 
-    double t3 = glfwGetTime();
     recompute_grid();
     recompute_neighbors();
-    cudaCheckError(cudaDeviceSynchronize());
 
     // Simulation 
-    double t4 = glfwGetTime();
     for (int iter = 0; iter < Constants::solver_iterations; iter++) {
         simulate(); 
     }
-    cudaCheckError(cudaDeviceSynchronize());
 
     // Post processing (update velocities, positions, XSPH, vorticity)
     // TODO: vorticity
-    double t5 = glfwGetTime();
     compute_densities();
-    cudaCheckError(cudaDeviceSynchronize());
-    double t6 = glfwGetTime();
     compute_velocities_and_positions(elapsed);
-    cudaCheckError(cudaDeviceSynchronize());
-    double t7 = glfwGetTime();
     xsph_viscosity();
-    cudaCheckError(cudaDeviceSynchronize());
-    double t8 = glfwGetTime();
     update_velocities();
-    cudaCheckError(cudaDeviceSynchronize());
 
     // Copy particles back to host 
-    double t9 = glfwGetTime();
     cudaMemcpy(scene.particles.data(), particles, sizeof(Particle) * _n, cudaMemcpyDeviceToHost);
-    cudaCheckError(cudaDeviceSynchronize());
-    double t10 = glfwGetTime();
-
-    std::cout << "0 - 4: " << t1-t0 << " " << t2-t1 << " " << t3-t2 << " " << t4-t3 << " " << t5-t4 << std::endl;
-    std::cout << "5 - 10: " << t6-t5 << " " << t7-t6 << " " << t8-t7 << " " << t9-t8 << " " << t10-t9 << std::endl;
     return;
 }

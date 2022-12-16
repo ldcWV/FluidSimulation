@@ -1,6 +1,6 @@
 import random
 
-num_particles = 20
+num_particles = 50000
 bbox_mins = [-1, 0, -1]
 bbox_maxs = [1, 8, 1]
 x_interval = (-1, 0)
@@ -15,7 +15,7 @@ for i in range(num_particles):
         random.uniform(z_interval[0], z_interval[1])
     ))
 
-f = open("20_random_yuki.txt", "w")
+f = open("50000_random_yuki.txt", "w")
 f.write(str(num_particles) + "\n")
 for i in range(3):
     f.write(str(bbox_mins[i]) + " ")

@@ -47,8 +47,8 @@ int main(int argc, char* argv[]) {
     string scene_name = "108000_random_yuki";
     bool benchmark = false;
     int num_iterations = 100000;
-    bool save_replay = false;
-    bool play_replay = true;
+    bool save_replay = true;
+    bool play_replay = false;
 
     if (save_replay && play_replay) {
         cout << "Cannot both save and play replay" << endl;

@@ -17,4 +17,5 @@ namespace Constants {
     const float xsph_c = 0.05f;
     const double damping = 0.999;
     const int threads_per_block = 32;
+    const int MAX_NEIGHBORS = 500000000;
 };

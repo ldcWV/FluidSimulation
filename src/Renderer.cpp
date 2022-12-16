@@ -129,7 +129,7 @@ Renderer::Renderer() {
     };
     glfwSetKeyCallback(window, keyCallbackLambda);
 
-    camera = Camera(vec3(0.f, 0.f, 20.f));
+    camera = Camera(vec3(0.f, 4.f, 6.f));
 
     glEnable(GL_DEPTH_TEST);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
