@@ -72,7 +72,7 @@ __host__ ParallelSimulator::ParallelSimulator(const Scene& scene) {
     cudaMalloc((void**)&lambdas, sizeof(double) * _n);
     cudaMalloc((void**)&densities, sizeof(double) * _n);
     cudaMalloc((void**)&particles, sizeof(Particle) * _n);
-    cudaMalloc((void**)&neighbors, sizeof(int) * 5000000);
+    cudaMalloc((void**)&neighbors, sizeof(int) * 100000000);
     cudaMalloc((void**)&neighbor_starts, sizeof(int) * _n);
     cudaMalloc((void**)&neighbor_sizes, sizeof(int) * _n);
 
@@ -146,13 +146,20 @@ __host__ void ParallelSimulator::reset() {
 __device__ double poly6(const dvec3& r, const double h) {
     double r_mag = length(r);
     if (r_mag > h) return 0.0;
-    return 315.0 / (64 * GC.pi * pow(h, 9)) * pow(h * h - r_mag * r_mag, 3);
+    double powh3 = h*h*h;
+    double powh9 = powh3*powh3*powh3;
+    double h_rmag = h*h - r_mag*r_mag;
+    double h_rmag3 = h_rmag*h_rmag*h_rmag;
+    return 315.0 / (64 * GC.pi * powh9) * h_rmag3;
 }
 
 __device__ dvec3 grad_spiky(const dvec3& r, const double h) {
     double r_mag = length(r);
     if (r_mag > h) return dvec3{0, 0, 0};
-    return -45 / (GC.pi * pow(h, 6) * max(r_mag, 1e-24)) * pow(h - r_mag, 2) * r;
+    double powh2 = h*h;
+    double powh6 = powh2*powh2*powh2;
+    double dist2 = dot(h-r_mag, h-r_mag);
+    return -45 / (GC.pi * powh6 * max(r_mag, 1e-24)) * dist2 * r;
 }
 
 __device__ ivec3 get_cell_coords(dvec3 pos) {
@@ -239,7 +246,10 @@ __global__ void compute_neighbors_kernel(Particle *particles, int *neighbors, in
     if (idx >= n) return;
     Particle &p = particles[idx];
     ivec3 our_coords = get_cell_coords(p.new_pos);
-    int current_neighbor = 0;
+    // Hacky way to make ourself always the first neighbor
+    neighbors[neighbor_starts[idx]] = idx;
+    int current_neighbor = 1;
+
     for (int dx = -1; dx <= 1; ++dx) {
         for (int dy = -1; dy <= 1; ++dy) {
             for (int dz = -1; dz <= 1; ++dz) {
@@ -250,8 +260,10 @@ __global__ void compute_neighbors_kernel(Particle *particles, int *neighbors, in
                 
                 int cell_idx = get_cell_idx(coords);
                 for (int j = grid_starts[cell_idx]; j < grid_starts[cell_idx] + bins[cell_idx]; ++j) {
-                    neighbors[neighbor_starts[idx] + current_neighbor] = grid[j];
-                    current_neighbor++;
+                    if (grid[j] != idx) {
+                        neighbors[neighbor_starts[idx] + current_neighbor] = grid[j];
+                        current_neighbor++;
+                    }
                 }
             }
         }
@@ -271,22 +283,23 @@ __device__ double compute_constraint(double *densities, int particle_id) {
     return densities[particle_id] / GC.rest_density - 1.0;
 }
 
-// MAKE SURE THIS IS RIGHT WITH SEQ ONE 
-__device__ dvec3 compute_grad_constraint(Particle* particles, int *neighbors, int neighbor_start, int neighbor_end, int constraint_id, int grad_id) {
+__device__ dvec3 compute_grad_constraint(Particle* particles, int constraint_id, int grad_id) {
     const Particle &constraint_particle = particles[constraint_id];
     const dvec3& constraint_pos = constraint_particle.new_pos;
-    if (constraint_id == grad_id) {
-        dvec3 res{0.0, 0.0, 0.0};
-        for (int ni = neighbor_start; ni < neighbor_end; ni++) {
-            int neighbor_id = neighbors[ni];
-            Particle& neighbor = particles[neighbor_id];
-            const dvec3& neighbor_pos = neighbor.new_pos;
-            res += GC.mass * grad_spiky(constraint_pos - neighbor_pos, GC.h);
-        }
-        return res / GC.rest_density;
-    } else {
-        return -GC.mass * grad_spiky(constraint_pos - particles[grad_id].new_pos, GC.h) / GC.rest_density;
+    return -GC.mass * grad_spiky(constraint_pos - particles[grad_id].new_pos, GC.h) / GC.rest_density;
+}
+
+__device__ dvec3 compute_grad_constraint_self(Particle* particles, int* neighbors, int neighbor_start, int neighbor_end, int constraint_id) {
+    const Particle &constraint_particle = particles[constraint_id];
+    const dvec3& constraint_pos = constraint_particle.new_pos;
+    dvec3 res{0.0, 0.0, 0.0};
+    for (int ni = neighbor_start; ni < neighbor_end; ni++) {
+        int neighbor_id = neighbors[ni];
+        Particle& neighbor = particles[neighbor_id];
+        const dvec3& neighbor_pos = neighbor.new_pos;
+        res += GC.mass * grad_spiky(constraint_pos - neighbor_pos, GC.h);
     }
+    return res / GC.rest_density;
 }
 
 __global__ void compute_lambdas_kernel(Particle *particles, int *neighbors, double *densities, double *lambdas, int *neighbor_starts, int *neighbor_sizes, int n) {
@@ -295,14 +308,15 @@ __global__ void compute_lambdas_kernel(Particle *particles, int *neighbors, doub
     Particle &p = particles[idx];
     ivec3 coords = get_cell_coords(p.new_pos);
     int cell_idx = get_cell_idx(coords);
-    double numerator = compute_constraint(densities, idx);
-    double denominator = 0.0;
     int neighbor_start = neighbor_starts[idx];
     int neighbor_end = neighbor_start + neighbor_sizes[idx];
-    for (int ni = neighbor_start; ni < neighbor_end; ni++) {
+    double numerator = compute_constraint(densities, idx);
+    dvec3 grad_self  = compute_grad_constraint_self(particles, neighbors, neighbor_start, neighbor_end, idx);
+    double denominator = dot(grad_self, grad_self) / GC.mass;
+    for (int ni = neighbor_start + 1; ni < neighbor_end; ni++) {
         int neighbor_id = neighbors[ni];
         Particle& neighbor = particles[neighbor_id];
-        dvec3 grad = compute_grad_constraint(particles, neighbors, neighbor_start, neighbor_end, idx, neighbor.id);
+        dvec3 grad = compute_grad_constraint(particles, idx, neighbor.id);
         denominator += dot(grad, grad) / GC.mass;
     }
     denominator += GC.eps;
@@ -330,7 +344,10 @@ __global__ void compute_delta_positions_kernel(Particle *particles, int *neighbo
         int neighbor_id = neighbors[ni];
         Particle &neighbor = particles[neighbor_id];
         double corr_kernel = poly6(p.new_pos - neighbor.new_pos, GC.h); 
-        double corr = -GC.corr_k * std::pow(corr_kernel / corr_q, GC.corr_n);
+        double ratio = corr_kernel / corr_q;
+        double ratio2 = ratio*ratio;
+        double ratio4 = ratio2*ratio2;
+        double corr = -GC.corr_k * ratio4;
         dvec3 grad_W = grad_spiky(p.new_pos - neighbor.new_pos, GC.h);
         delta_pos[idx] += GC.mass * (lambdas[idx] + lambdas[neighbor.id] + corr) * grad_W;
     }
@@ -375,11 +392,29 @@ __host__ void ParallelSimulator::update_collisions() {
 }
 
 __host__ void ParallelSimulator::simulate() {
+    double t0 = glfwGetTime();
+
     compute_densities(); // to use in lambdas and delta positions
+    cudaCheckError(cudaDeviceSynchronize());
+    double t1 = glfwGetTime();
+
     compute_lambdas();
+    cudaCheckError(cudaDeviceSynchronize());
+    double t2 = glfwGetTime();
+
     compute_delta_positions();
+    cudaCheckError(cudaDeviceSynchronize());
+    double t3 = glfwGetTime();
+
     update_positions();
+    cudaCheckError(cudaDeviceSynchronize());
+    double t4 = glfwGetTime();
+
     update_collisions();
+    cudaCheckError(cudaDeviceSynchronize());
+    double t5 = glfwGetTime();
+
+    std::cout << t1 - t0 << " " << t2-t1 << " " << t3-t2 << " " << t4-t3 << " " << t5-t4 << std::endl;
 }
 
 __global__ void compute_velocities_kernel(Particle *particles, double elapsed, int n) {
@@ -464,43 +499,53 @@ __host__ void ParallelSimulator::update_velocities() {
 __host__ void ParallelSimulator::update(double elapsed, Scene& scene) {
     double t0 = glfwGetTime();
     reset();
+    cudaCheckError(cudaDeviceSynchronize());
 
     // Copy scene particles from host to device memory 
     double t1 = glfwGetTime();
     cudaMemcpy(particles, scene.particles.data(), sizeof(Particle) * _n, cudaMemcpyHostToDevice);
+    cudaCheckError(cudaDeviceSynchronize());
 
     // Initial forces 
     double t2 = glfwGetTime();
     compute_velocities(elapsed);
+    cudaCheckError(cudaDeviceSynchronize());
 
     // Recompute neighbors 
     double t3 = glfwGetTime();
     recompute_grid();
     recompute_neighbors();
+    cudaCheckError(cudaDeviceSynchronize());
 
     // Simulation 
     double t4 = glfwGetTime();
     for (int iter = 0; iter < Constants::solver_iterations; iter++) {
         simulate(); 
     }
+    cudaCheckError(cudaDeviceSynchronize());
 
     // Post processing (update velocities, positions, XSPH, vorticity)
     // TODO: vorticity
     double t5 = glfwGetTime();
     compute_densities();
+    cudaCheckError(cudaDeviceSynchronize());
     double t6 = glfwGetTime();
     compute_velocities_and_positions(elapsed);
+    cudaCheckError(cudaDeviceSynchronize());
     double t7 = glfwGetTime();
     xsph_viscosity();
+    cudaCheckError(cudaDeviceSynchronize());
     double t8 = glfwGetTime();
     update_velocities();
+    cudaCheckError(cudaDeviceSynchronize());
 
     // Copy particles back to host 
     double t9 = glfwGetTime();
     cudaMemcpy(scene.particles.data(), particles, sizeof(Particle) * _n, cudaMemcpyDeviceToHost);
+    cudaCheckError(cudaDeviceSynchronize());
     double t10 = glfwGetTime();
 
-    // std::cout << "0 - 4: " << t1-t0 << " " << t2-t1 << " " << t3-t2 << " " << t4-t3 << " " << t5-t4 << std::endl;
-    // std::cout << "5 - 10: " << t6-t5 << " " << t7-t6 << " " << t8-t7 << " " << t9-t8 << " " << t10-t9 << std::endl;
+    std::cout << "0 - 4: " << t1-t0 << " " << t2-t1 << " " << t3-t2 << " " << t4-t3 << " " << t5-t4 << std::endl;
+    std::cout << "5 - 10: " << t6-t5 << " " << t7-t6 << " " << t8-t7 << " " << t9-t8 << " " << t10-t9 << std::endl;
     return;
 }

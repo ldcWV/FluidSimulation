@@ -19,7 +19,7 @@ private:
     int* grid;
     int* neighbor_sizes;
     int* neighbor_offsets;
-    static constexpr int MAX_NEIGHBORS = 5000000; // sum of # neighbors over every particle
+    static constexpr int MAX_NEIGHBORS = 100000000; // sum of # neighbors over every particle
     int neighbors[MAX_NEIGHBORS];
     double* lambdas;
     double* densities;

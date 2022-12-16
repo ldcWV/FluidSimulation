@@ -16,8 +16,8 @@ using namespace std;
 
 Scene renderer_scene;
 mutex renderer_scene_mutex;
-atomic_bool renderer_scene_updated = true;
-atomic_bool renderer_done = false;
+atomic_bool renderer_scene_updated(true);
+atomic_bool renderer_done(false);
 
 void render() {
     Renderer renderer;
@@ -27,9 +27,9 @@ void render() {
         // atomically copy renderer_scene
         if (renderer_scene_updated) {
             renderer_scene_mutex.lock();
-            renderer_scene_updated = false;
             current_scene = renderer_scene;
             renderer_scene_mutex.unlock();
+            renderer_scene_updated = false;
         }
 
         // render the copied scene
@@ -43,10 +43,10 @@ int main(int argc, char* argv[]) {
     cout << "Starting main" << endl;
     // todo: parse these arguments
     bool parallel = true;
-    string scene_name = "10000_random_yuki";
+    string scene_name = "108000_random_yuki";
     bool benchmark = false;
     int num_iterations = 100000;
-    bool save_replay = false;
+    bool save_replay = true;
     bool play_replay = false;
 
     if (save_replay && play_replay) {
@@ -67,7 +67,9 @@ int main(int argc, char* argv[]) {
     string replay_folder = string(REPLAY_DIR) + scene_name;
     if (save_replay) {
         cout << "Creating replay folder at " << replay_folder << endl;
+        #ifdef _WIN32
         _mkdir(replay_folder.c_str());
+        #endif
     }
     int replay_idx = 0;
 
@@ -95,10 +97,10 @@ int main(int argc, char* argv[]) {
         }
 
         // Atomically update renderer_scene
-        renderer_scene_updated = true;
         renderer_scene_mutex.lock();
         renderer_scene = scene;
         renderer_scene_mutex.unlock();
+        renderer_scene_updated = true;
 
         if (save_replay) {
             scene.save(replay_file);

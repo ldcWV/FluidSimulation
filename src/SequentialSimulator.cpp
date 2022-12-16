@@ -102,7 +102,7 @@ void SequentialSimulator::recompute_neighbors(Scene& scene) {
                     for (int j = grid_offsets[idx]; j < grid_offsets[idx] + grid_sizes[idx]; j++) {
                         int other_id = grid[j];
                         if (n_idx == MAX_NEIGHBORS) {
-                            cout << "Warning: ran out of space for neighbors (Constants::MAX_NEIGHBORS should be increased)." << endl;
+                            cout << "Warning: ran out of space for neighbors (MAX_NEIGHBORS should be increased)." << endl;
                             continue;
                         }
                         neighbors[n_idx] = other_id;
