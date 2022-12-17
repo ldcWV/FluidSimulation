@@ -69,6 +69,7 @@ private:
     void simulate(); 
 
     // HOST kernel wrappers
+    void post_process(double elapsed);
     void compute_lambdas();
     void compute_delta_positions();
     void compute_densities(); 

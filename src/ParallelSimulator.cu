@@ -44,6 +44,9 @@ struct GlobalConstants {
     double damping;
     int threads_per_block;
     int MAX_NEIGHBORS;
+    double poly6_c; 
+    double grad_spiky_c; 
+    double vorticity_eps;
 };
 
 __constant__ GlobalConstants GC; 
@@ -109,6 +112,8 @@ __host__ ParallelSimulator::ParallelSimulator(const Scene& scene) {
     _GC.damping = Constants::damping;
     _GC.threads_per_block = Constants::threads_per_block;
     _GC.MAX_NEIGHBORS = Constants::MAX_NEIGHBORS;
+    _GC.poly6_c = 315.0 / (64.0 * Constants::pi);
+    _GC.vorticity_eps = Constants::vorticity_eps;
 
     cudaMemcpyToSymbol(GC, &_GC, sizeof(GlobalConstants));
 }
@@ -423,7 +428,8 @@ __global__ void compute_velocities_and_positions_kernel(Particle *particles, dou
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
     Particle &p = particles[idx];
-    p.vel = GC.damping * (p.new_pos - p.pos) / elapsed;
+    // p.vel = GC.damping * (p.new_pos - p.pos) / elapsed;
+    p.vel = (p.new_pos - p.pos) / elapsed;
     p.pos = p.new_pos;
 }
 
@@ -481,6 +487,64 @@ __host__ void ParallelSimulator::update_velocities() {
     update_velocities_kernel<<<_blocks, _threads>>>(particles, delta_vel, _n);
 }
 
+__global__ void post_process_kernel(double elapsed, Particle *particles, int *neighbors, double *densities, int *neighbor_starts, int *neighbor_sizes, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n) return;
+    Particle &p = particles[idx];
+    ivec3 coords = get_cell_coords(p.new_pos);
+    int cell_idx = get_cell_idx(coords);
+
+    // Update velocities
+    // no DAMPING COMPARED TO OUR PREV VERSION
+    p.vel = (p.new_pos - p.pos) / elapsed;
+
+    // Vorticity 
+    dvec3 omega = dvec3{0.0, 0.0, 0.0};
+    for (int ni = neighbor_starts[idx]; ni < neighbor_starts[idx] + neighbor_sizes[idx]; ni++) {
+        int neighbor_id = neighbors[ni];
+        Particle &neighbor = particles[neighbor_id];
+        dvec3 vel = neighbor.vel - p.vel;
+        dvec3 gradient = grad_spiky(p.new_pos - neighbor.new_pos, GC.h);
+        omega += cross(vel, gradient);
+    }
+    double omega_mag = length(omega);
+    if (omega_mag != 0.0) {
+        dvec3 loc_vec = dvec3{0.0, 0.0, 0.0};
+        for (int ni = neighbor_starts[idx]; ni < neighbor_starts[idx] + neighbor_sizes[idx]; ni++) {
+            int neighbor_id = neighbors[ni];
+            Particle &neighbor = particles[neighbor_id];
+            loc_vec += grad_spiky(p.new_pos - neighbor.new_pos, GC.h) * omega_mag;
+        }
+        if (loc_vec.x != 0.0 || loc_vec.y != 0.0 || loc_vec.z != 0.0) {
+            loc_vec = normalize(loc_vec);
+        }
+        dvec3 vorticity = GC.vorticity_eps * cross(loc_vec, omega) / GC.mass;
+        p.vel += vorticity * elapsed;
+    }
+
+    // XSPH 
+    dvec3 delta_vel = dvec3{0.0, 0.0, 0.0};
+    for (int ni = neighbor_starts[idx]; ni < neighbor_starts[idx] + neighbor_sizes[idx]; ni++) {
+        int neighbor_id = neighbors[ni];
+        Particle &neighbor = particles[neighbor_id];
+        dvec3 vel = neighbor.vel - p.vel;
+        double density = densities[neighbor.id];
+        delta_vel += (GC.mass / density) * vel * poly6(p.new_pos - neighbor.new_pos, GC.h);
+    }
+
+    // Update positions and velocities with XSPH
+    p.vel += delta_vel;
+    p.pos = p.new_pos;
+}
+
+__host__ void ParallelSimulator::post_process(double elapsed) {
+    compute_densities();
+    post_process_kernel<<<_blocks, _threads>>>(elapsed, particles, neighbors, densities, neighbor_starts, neighbor_sizes, _n);
+    // compute_velocities_and_positions(elapsed);
+    // xsph_viscosity();
+    // update_velocities();
+}
+
 __host__ void ParallelSimulator::update(double elapsed, Scene& scene) {
     reset();
 
@@ -500,11 +564,7 @@ __host__ void ParallelSimulator::update(double elapsed, Scene& scene) {
     }
 
     // Post processing (update velocities, positions, XSPH, vorticity)
-    // TODO: vorticity
-    compute_densities();
-    compute_velocities_and_positions(elapsed);
-    xsph_viscosity();
-    update_velocities();
+    post_process(elapsed);
 
     // Copy particles back to host 
     cudaMemcpy(scene.particles.data(), particles, sizeof(Particle) * _n, cudaMemcpyDeviceToHost);

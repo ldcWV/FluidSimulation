@@ -7,7 +7,7 @@ namespace Constants {
     const double eps = 1e5;
     const double mass = 1.0 / 30.0;
     const double h = 0.1; // not the same thing as radius 
-    const double radius = 0.01;
+    const double radius = 0.05;
     const int solver_iterations = 2;
     const double pi = 3.14159265358979323846;
     const double rest_density = 1000;
@@ -18,4 +18,5 @@ namespace Constants {
     const double damping = 0.999;
     const int threads_per_block = 32;
     const int MAX_NEIGHBORS = 500000000;
+    const double vorticity_eps = 0.0000001;
 };

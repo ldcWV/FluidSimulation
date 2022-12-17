@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
     cout << "Starting main" << endl;
     // todo: parse these arguments
     bool parallel = true;
-    string scene_name = "108000_random_yuki";
+    string scene_name = "10000_random_small";
     bool benchmark = false;
     int num_iterations = 100000;
     bool save_replay = true;
