@@ -549,14 +549,14 @@ __host__ void ParallelSimulator::update(double elapsed, Scene& scene) {
     // cout << "Everything: " << totalT / iters << endl;
     // cout << endl;
 
-    cout << initializationT / iters << endl;
-    cout << griddingT / iters << endl;
-    cout << densitiesT / iters << endl;
-    cout << lambdasT / iters << endl;
-    cout << deltasT / iters << endl;
-    cout << updatesT / iters << endl;
-    cout << postT / iters << endl;
-    cout << totalT / iters << endl;
-    cout << endl;
+    // cout << initializationT / iters << endl;
+    // cout << griddingT / iters << endl;
+    // cout << densitiesT / iters << endl;
+    // cout << lambdasT / iters << endl;
+    // cout << deltasT / iters << endl;
+    // cout << updatesT / iters << endl;
+    // cout << postT / iters << endl;
+    // cout << totalT / iters << endl;
+    // cout << endl;
     return;
 }

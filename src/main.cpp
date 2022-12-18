@@ -46,7 +46,9 @@ int main(int argc, char* argv[]) {
     // todo: parse these arguments
     bool parallel = true;
     // string scene_name = argv[1];
-    string scene_name = "8192_blob";
+    // string scene_name = "131072_blob";
+    // string scene_name = "131072_blob";
+    string scene_name = "10000_small";
     bool benchmark = false;
     int num_iterations = 500000;
     bool save_replay = false;
@@ -76,9 +78,7 @@ int main(int argc, char* argv[]) {
     
     cout << "Starting renderer" << endl;
     renderer_scene = scene;
-    // thread render_thread(render);
-
-    // this_thread::sleep_for(std::chrono::milliseconds(8000));
+    thread render_thread(render);
 
     cout << "Starting main loop" << endl;
     Timer timer;

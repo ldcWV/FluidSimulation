@@ -204,6 +204,7 @@ bool Renderer::draw(const Scene& scene) {
     deltaTime = currentFrameTime - lastFrameTime;
     lastFrameTime = currentFrameTime;
     frametime = 0.8 * frametime + 0.2*deltaTime;
+    // cout << 1/frametime << " FPS" << endl;
 
     return true;
 }
