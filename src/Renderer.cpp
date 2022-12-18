@@ -183,6 +183,7 @@ Renderer::Renderer() {
 }
 
 bool Renderer::draw(const Scene& scene) {
+    static float frametime = 0;
     if (glfwWindowShouldClose(window)) {
         cout << "Closing glfw window" << endl;
         return false;
@@ -202,6 +203,7 @@ bool Renderer::draw(const Scene& scene) {
     float currentFrameTime = float(glfwGetTime());
     deltaTime = currentFrameTime - lastFrameTime;
     lastFrameTime = currentFrameTime;
+    frametime = 0.8 * frametime + 0.2*deltaTime;
 
     return true;
 }

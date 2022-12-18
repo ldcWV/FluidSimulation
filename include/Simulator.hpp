@@ -20,7 +20,7 @@ private:
     int* grid;
     int* neighbor_sizes;
     int* neighbor_offsets;
-    int neighbors[Constants::MAX_NEIGHBORS];
+    int neighbors[Constants::MAX_NEIGHBORS_SEQ];
     double* lambdas;
     double* densities;
     glm::dvec3* delta_pos;

@@ -2,6 +2,12 @@
 #include "Constants.hpp"
 #include "Kernels.hpp"
 #include <iostream>
+#include "Timer.hpp"
+
+Timer bigtimer2;
+Timer timer2;
+float iters2 = 0;
+float initializationT2=0, griddingT2=0, densitiesT2=0, lambdasT2=0, deltasT2=0, updatesT2=0, postT2=0, totalT2=0;
 
 using namespace glm;
 
@@ -101,7 +107,7 @@ void SequentialSimulator::recompute_neighbors(Scene& scene) {
                     int idx = get_cell_idx(coords);
                     for (int j = grid_offsets[idx]; j < grid_offsets[idx] + grid_sizes[idx]; j++) {
                         int other_id = grid[j];
-                        if (n_idx >= Constants::MAX_NEIGHBORS) {
+                        if (n_idx >= Constants::MAX_NEIGHBORS_SEQ) {
                             cout << "Warning: ran out of space for neighbors (MAX_NEIGHBORS should be increased)." << endl;
                             continue;
                         }
@@ -133,7 +139,7 @@ double SequentialSimulator::compute_density(Scene& scene, int particle_id) {
 }
 
 double SequentialSimulator::compute_constraint(Scene& scene, int particle_id) {
-    return compute_density(scene, particle_id) / Constants::rest_density - 1.0;
+    return densities[particle_id] / Constants::rest_density - 1.0;
 }
 
 // Assumes that grad_id is the id of a neighbor of particle_id
@@ -154,17 +160,27 @@ dvec3 SequentialSimulator::compute_grad_constraint(Scene& scene, int constraint_
 }
 
 void SequentialSimulator::update(double elapsed, Scene& scene) {
+    iters2++;
+    bigtimer2.start();
+    timer2.start();
     for (auto& p : scene.particles) {
         // Apply forces
         p.vel += elapsed * Constants::g;
         // Predict new position
         p.new_pos = p.pos + elapsed * p.vel;
     }
+    initializationT2 += timer2.stop();
 
     recompute_grid(scene);
     recompute_neighbors(scene);
+    griddingT2 += timer2.stop();
     
     for (int iter = 0; iter < Constants::solver_iterations; iter++) {
+        timer2.start();
+        for (int i = 0; i < scene.particles.size(); ++i) {
+            densities[i] = compute_density(scene, i);
+        }
+        densitiesT2 += timer2.stop();
         // Calculate lambda_i
         for (int i = 0; i < scene.particles.size(); ++i) {
             double numerator = compute_constraint(scene, i);
@@ -179,6 +195,7 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
 
             lambdas[i] = -numerator / denominator;
         }
+        lambdasT2 += timer2.stop();
         
         // Calculate delta_p and perform collision detection and response
         double corr_q = Kernels::poly6(Constants::corr_q * Constants::h * dvec3{1.0, 0.0, 0.0}, Constants::h);
@@ -193,6 +210,7 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
             }
             delta_pos[i] *= (1.0 / Constants::mass) * (1.0 / Constants::rest_density);
         }
+        deltasT2 += timer2.stop();
         
         // Separate for loops for parallelization later 
         for (int i = 0; i < scene.particles.size(); ++i) {
@@ -211,8 +229,10 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
                 }
             }
         }
+        updatesT2 += timer2.stop();
     }
 
+    timer2.start();
     for (auto& p : scene.particles) {
         // should we damp the velocities? 
         p.vel = Constants::damping * (p.new_pos - p.pos) / elapsed;
@@ -238,5 +258,17 @@ void SequentialSimulator::update(double elapsed, Scene& scene) {
     }
     for (int i = 0; i < scene.particles.size(); ++i) {
         scene.particles[i].vel += delta_vel[i];
-    }    
+    }
+    postT2 += timer2.stop();
+    totalT2 += bigtimer2.stop();
+
+    cout << initializationT2 / iters2 << endl;
+    cout << griddingT2 / iters2 << endl;
+    cout << densitiesT2 / iters2 << endl;
+    cout << lambdasT2 / iters2 << endl;
+    cout << deltasT2 / iters2 << endl;
+    cout << updatesT2 / iters2 << endl;
+    cout << postT2 / iters2 << endl;
+    cout << totalT2 / iters2 << endl;
+    cout << endl;
 }

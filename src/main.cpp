@@ -12,6 +12,7 @@
 #include <mutex>
 #include <atomic>
 #include "ReplayManagers.hpp"
+#include "Timer.hpp"
 
 using namespace std;
 
@@ -44,10 +45,11 @@ int main(int argc, char* argv[]) {
     cout << "Starting main" << endl;
     // todo: parse these arguments
     bool parallel = true;
-    string scene_name = "108000_random_yuki";
+    // string scene_name = argv[1];
+    string scene_name = "8192_blob";
     bool benchmark = false;
-    int num_iterations = 100000;
-    bool save_replay = true;
+    int num_iterations = 500000;
+    bool save_replay = false;
     bool play_replay = false;
 
     if (save_replay && play_replay) {
@@ -74,10 +76,17 @@ int main(int argc, char* argv[]) {
     
     cout << "Starting renderer" << endl;
     renderer_scene = scene;
-    thread render_thread(render);
+    // thread render_thread(render);
+
+    // this_thread::sleep_for(std::chrono::milliseconds(8000));
 
     cout << "Starting main loop" << endl;
+    Timer timer;
+    float updatetime = 0;
     for (int i = 0; i < num_iterations; i++) {
+        timer.start();
+        cout << "Iteration " << i << endl;
+        cout << "-------------------" << endl;
         /* Render here */
         if (play_replay) {
             int err = rr->read_scene(&scene);
@@ -87,10 +96,7 @@ int main(int argc, char* argv[]) {
             }
             this_thread::sleep_for(std::chrono::milliseconds(15));
         } else {
-            auto st = chrono::high_resolution_clock::now().time_since_epoch();
             sim->update(Constants::dt, scene);
-            auto en = chrono::high_resolution_clock::now().time_since_epoch();
-            cout << "Update took " << chrono::duration_cast<chrono::milliseconds>(en - st).count() << " ms" << endl;
         }
 
         // Atomically update renderer_scene
@@ -104,6 +110,8 @@ int main(int argc, char* argv[]) {
         }
 
         if (renderer_done) break;
+        updatetime = 0.8 * updatetime + 0.2*timer.stop();
+        cout << (1/(updatetime/1000)) << " steps per second" << endl;
     }
 
     cout << "Terminating program" << endl;

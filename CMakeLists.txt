@@ -19,6 +19,7 @@ set(SOURCES
     src/Shader.cpp
     src/Camera.cpp
     src/ReplayManagers.cpp
+    src/Timer.cpp
 )
 
 find_package( OpenGL REQUIRED )
