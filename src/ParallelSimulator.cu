@@ -500,7 +500,30 @@ __host__ void ParallelSimulator::update(double elapsed, Scene& scene) {
     }
 
     // Post processing (update velocities, positions, XSPH, vorticity)
-    // TODO: vorticity
+    // Vorticity 
+    // dvec3 omega = dvec3{0.0, 0.0, 0.0};
+    // for (int ni = neighbor_starts[idx]; ni < neighbor_starts[idx] + neighbor_sizes[idx]; ni++) {
+    //     int neighbor_id = neighbors[ni];
+    //     Particle &neighbor = particles[neighbor_id];
+    //     dvec3 vel = neighbor.vel - p.vel;
+    //     dvec3 gradient = grad_spiky(p.new_pos - neighbor.new_pos, GC.h);
+    //     omega += cross(vel, gradient);
+    // }
+    // double omega_mag = length(omega);
+    // if (omega_mag != 0.0) {
+    //     dvec3 loc_vec = dvec3{0.0, 0.0, 0.0};
+    //     for (int ni = neighbor_starts[idx]; ni < neighbor_starts[idx] + neighbor_sizes[idx]; ni++) {
+    //         int neighbor_id = neighbors[ni];
+    //         Particle &neighbor = particles[neighbor_id];
+    //         loc_vec += grad_spiky(p.new_pos - neighbor.new_pos, GC.h) * omega_mag;
+    //     }
+    //     if (loc_vec.x != 0.0 || loc_vec.y != 0.0 || loc_vec.z != 0.0) {
+    //         loc_vec = normalize(loc_vec);
+    //     }
+    //     dvec3 vorticity = GC.vorticity_eps * cross(loc_vec, omega) / GC.mass;
+    //     p.vel += vorticity * elapsed;
+    // }
+
     compute_densities();
     compute_velocities_and_positions(elapsed);
     xsph_viscosity();
